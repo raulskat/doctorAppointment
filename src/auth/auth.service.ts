@@ -168,6 +168,8 @@ async signupPatient(dto: PatientSignupDto) {
     // Optional: save hashed refresh token in DB if using token rotation
     
     await this.updateRefreshToken(user.user_id, tokens.refresh_token);
+    
+
     return {
     ...tokens,
     user: userInfo
@@ -182,7 +184,10 @@ async signupPatient(dto: PatientSignupDto) {
   return { message: 'Sign-out successful' };
   }
 
+  
 
+
+// 
 
 
 // 
