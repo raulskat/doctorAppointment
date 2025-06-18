@@ -1,4 +1,5 @@
 // src/auth/auth.controller.ts
+
 import { Body, Controller, Post, Req, Res, ForbiddenException } from '@nestjs/common';
 import { SignupDto } from './dto/signup.dto';
 import { SigninDto } from './dto/signin.dto';
@@ -6,7 +7,6 @@ import { AuthService } from './auth.service';
 import { Request,Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-
 
 @Controller('api/v1/auth')
 export class AuthController {
