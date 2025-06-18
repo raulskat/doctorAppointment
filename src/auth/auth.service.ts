@@ -114,7 +114,7 @@ const savedDoctor = await this.doctorRepo.save(doctor);
   return { message: 'Sign-out successful' };
   }
 
-  
+
 
 
 // 
