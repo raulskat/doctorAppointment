@@ -42,5 +42,8 @@ export class User {
 
   @OneToOne(() => Patient, patient => patient.user, { nullable: true })
   patient: Patient;
+
+  @Column({ type: 'text', nullable: true })
+  hashedRefreshToken?: string | null;
 }
 

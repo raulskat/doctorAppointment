@@ -2,7 +2,8 @@
 import {
   BadRequestException,
   Injectable,
-  UnauthorizedException 
+  UnauthorizedException,
+  ForbiddenException
 } from '@nestjs/common';
 import { SignupDto } from './dto/signup.dto';
 import { SigninDto } from './dto/signin.dto';
@@ -85,11 +86,12 @@ const savedDoctor = await this.doctorRepo.save(doctor);
     if (user.role !== UserRole.DOCTOR)
       throw new UnauthorizedException('Access denied');
 
-    const tokens = await this.generateTokens(user.user_id, user.email);
+    const tokens = await this.generateTokens(user.user_id, user.email, user.role);
     
     // Optional: save hashed refresh token in DB if using token rotation
-    // const hashedRt = await bcrypt.hash(tokens.refresh_token, 10);
-    // await this.userRepo.update(user.user_id, { refresh_token: hashedRt });
+    
+    await this.updateRefreshToken(user.user_id, tokens.refresh_token);
+    
 
     return {
     ...tokens,
@@ -106,29 +108,82 @@ const savedDoctor = await this.doctorRepo.save(doctor);
   }
 
 //  sign-out
+  async signout(userId: number) {
+  await this.userRepo.update(userId, {
+    hashedRefreshToken: null,
+  });
+  return { message: 'Sign-out successful' };
+  }
 
   
 
 
+// 
 
 
-  async generateTokens(userId: number, email: string) {
-    const [access_token, refresh_token] = await Promise.all([
-      this.jwtService.signAsync(
-        { sub: userId, email },
-        {
-          secret: this.config.get('JWT_ACCESS_SECRET'),
-          expiresIn: '1h',
-        }
-      ),
-      this.jwtService.signAsync(
-        { sub: userId, email },
-        {
-          secret: this.config.get('JWT_REFRESH_SECRET'),
-          expiresIn: '7d',
-        }
-      ),
-    ]);
+
+async refreshTokens(refreshToken: string) {
+  try {
+    const payload = this.jwtService.verify(refreshToken, {
+      secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+    });
+
+    const user = await this.userRepo.findOne({
+      where: { user_id: payload.sub },
+      relations: ['doctor'], // if you need doctor data in response
+    });
+
+    if (!user || !user.hashedRefreshToken)
+      throw new ForbiddenException('Access Denied');
+
+    const isTokenMatching = await bcrypt.compare(
+      refreshToken,
+      user.hashedRefreshToken,
+    );
+
+    if (!isTokenMatching) throw new ForbiddenException('Invalid Refresh Token');
+
+    const tokens = await this.generateTokens(user.user_id, user.email,user.role);
+    await this.updateRefreshToken(user.user_id, tokens.refresh_token);
+
+    return {
+      ...tokens,
+      user: {
+        user_id: user.user_id,
+        email: user.email,
+        role: user.role,
+        doctor_id: user.doctor?.doctor_id,
+        first_name: user.doctor?.first_name,
+        last_name: user.doctor?.last_name,
+      }
+    };
+  } catch (error) {
+    throw new ForbiddenException('Invalid or Expired Refresh Token');
+  }
+}
+
+
+
+async updateRefreshToken(userId: number, refreshToken: string) {
+  const hashed = await bcrypt.hash(refreshToken, 10);
+  await this.userRepo.update(userId, {
+    hashedRefreshToken: hashed,
+  });
+}
+
+  async generateTokens(userId: number, email: string, role: UserRole) {
+    const payload = { sub: userId, email, role };
+
+  const [access_token, refresh_token] = await Promise.all([
+    this.jwtService.signAsync(payload, {
+      secret: this.config.get('JWT_ACCESS_SECRET'),
+      expiresIn: '1h',
+    }),
+    this.jwtService.signAsync(payload, {
+      secret: this.config.get('JWT_REFRESH_SECRET'),
+      expiresIn: '7d',
+    }),
+  ]);
 
     return { access_token, refresh_token };
   }
