@@ -37,9 +37,10 @@ export class User {
   @UpdateDateColumn({ default: () => 'NOW()', nullable: false })
   last_login: Date;
 
-  @OneToOne(() => Doctor, doctor => doctor.user)
+  @OneToOne(() => Doctor, doctor => doctor.user, { nullable: true })
   doctor: Doctor;
 
-  @OneToOne(() => Patient, patient => patient.user)
+  @OneToOne(() => Patient, patient => patient.user, { nullable: true })
   patient: Patient;
 }
+
