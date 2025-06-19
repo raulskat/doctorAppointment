@@ -50,7 +50,6 @@ const doctor = this.doctorRepo.create({
   user: savedUser,
   first_name: dto.first_name,
   last_name: dto.last_name,
-  email: dto.email, // optional, consider dropping from Doctor entity
   specialization: dto.specialization,
   experience_years: 0,
   phone_number: 'N/A',
