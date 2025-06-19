@@ -1,12 +1,16 @@
 // src/auth/dto/signup.dto.ts
-import { IsEmail, IsNotEmpty, MinLength,Min, Max, IsInt } from 'class-validator';
+import { IsEmail, IsNotEmpty, MinLength,Min, Max, IsInt,IsEnum } from 'class-validator';
+import { UserRole } from '../../users/entities/user.entity';
 
-export class SignupDto {
+export class DoctorSignupDto {
   @IsEmail()
   email: string;
 
   @MinLength(6)
   password: string;
+
+  @IsEnum(UserRole)
+  role: UserRole;
 
   @IsNotEmpty()
   first_name: string;
