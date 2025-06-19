@@ -33,9 +33,6 @@ export class Patient {
   last_name: string;
 
   @Column()
-  email: string;
-
-  @Column()
   phone_number: string;
 
   @Column({ type: 'enum', enum: Gender })
