@@ -2,7 +2,7 @@
 import { IsEmail, IsNotEmpty, MinLength,Min, Max, IsInt, IsString, IsEnum } from 'class-validator';
 import { UserRole } from 'src/users/entities/user.entity';
 
-export class SignupDto {
+export class DoctorSignupDto {
   @IsEmail()
   email: string;
 

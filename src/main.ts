@@ -22,6 +22,7 @@ async function bootstrap() {
       transform: true, // Automatically transform payloads to DTO classes
     }),
   );
+  app.setGlobalPrefix('api/v1');
 
   await app.listen(process.env.PORT ?? 3000);
 }
