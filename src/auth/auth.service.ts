@@ -89,7 +89,6 @@ async signupPatient(dto: PatientSignupDto) {
     user: savedUser,
     first_name: dto.first_name,
     last_name: dto.last_name,
-    email: dto.email,
     phone_number: dto.phone_number,
     gender: dto.gender,
     dob: dto.dob,
