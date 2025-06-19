@@ -55,14 +55,14 @@ async signupDoctor(dto: DoctorSignupDto) {
     first_name: dto.first_name,
     last_name: dto.last_name,
     specialization: dto.specialization,
-    experience_years: 0,
-    phone_number: 'N/A',
-    education: 'N/A',
-    clinic_name: 'N/A',
-    clinic_address: 'N/A',
-    available_days: 'N/A',
-    available_time_slots: 'N/A',
-  });
+    experience_years: dto.experience_years,
+    phone_number: dto.phone_number,
+    education: dto.education,
+    clinic_name: dto.clinic_name,
+    clinic_address: dto.clinic_address,
+    available_days: dto.available_days,
+    available_time_slots: dto.available_time_slots,
+});
   const savedDoctor = await this.doctorRepo.save(doctor);
 
   return {
