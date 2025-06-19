@@ -43,6 +43,10 @@ async signupDoctor(dto: DoctorSignupDto) {
   const existing = await this.userRepo.findOne({ where: { email: dto.email } });
   if (existing) throw new BadRequestException('Email already registered');
 
+  if (dto.role !== UserRole.DOCTOR) {
+  throw new BadRequestException('Invalid role for this endpoint');
+}
+
   const user = this.userRepo.create({
     email: dto.email,
     password: await bcrypt.hash(dto.password, 10),
@@ -77,6 +81,10 @@ async signupDoctor(dto: DoctorSignupDto) {
 async signupPatient(dto: PatientSignupDto) {
   const existing = await this.userRepo.findOne({ where: { email: dto.email } });
   if (existing) throw new BadRequestException('Email already registered');
+
+  if (dto.role !== UserRole.PATIENT) {
+  throw new BadRequestException('Invalid role for this endpoint');
+}
 
   const user = this.userRepo.create({
     email: dto.email,
