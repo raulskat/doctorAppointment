@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   OneToOne,
   OneToMany,
@@ -19,10 +19,10 @@ export enum Gender {
 
 @Entity()
 export class Patient {
-  @PrimaryGeneratedColumn()
-  patient_id: number;
+  @PrimaryColumn()
+  user_id: number;
 
-  @OneToOne(() => User, user => user.patient, { eager: true })
+  @OneToOne(() => User, user => user.patient, { eager: true, cascade: true })
   @JoinColumn({ name: 'user_id' })
   user: User;
 

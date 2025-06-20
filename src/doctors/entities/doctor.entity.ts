@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   OneToOne,
   OneToMany,
@@ -14,10 +14,10 @@ import { Appointment } from 'src/appointments/entities/appointment.entity';
 
 @Entity()
 export class Doctor {
-  @PrimaryGeneratedColumn()
-  doctor_id: number;
+  @PrimaryColumn()
+  user_id: number;
 
-  @OneToOne(() => User, user => user.doctor, { eager: true })
+  @OneToOne(() => User, user => user.doctor, { eager: true, cascade: true })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
