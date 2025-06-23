@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { Appointment } from 'src/appointments/entities/appointment.entity';
+
 
 export enum Gender {
   MALE = 'male',
@@ -59,6 +59,5 @@ export class Patient {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @OneToMany(() => Appointment, appointment => appointment.patient)
-  appointments: Appointment[];
+  
 }

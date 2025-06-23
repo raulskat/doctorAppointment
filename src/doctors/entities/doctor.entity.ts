@@ -9,8 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { TimeSlot } from 'src/timeslots/entities/timeslot.entity';
-import { Appointment } from 'src/appointments/entities/appointment.entity';
+
 
 @Entity()
 export class Doctor {
@@ -57,9 +56,5 @@ export class Doctor {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @OneToMany(() => Appointment, appointment => appointment.doctor)
-  appointments: Appointment[];
-
-  @OneToMany(() => TimeSlot, timeslot => timeslot.doctor)
-  timeslots: TimeSlot[];
+  
 }
