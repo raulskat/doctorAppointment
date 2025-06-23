@@ -1,6 +1,6 @@
 // src/auth/auth.controller.ts
 
-import { Body, Controller, Post, Req, Res, ForbiddenException } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, ForbiddenException, BadRequestException, Redirect, Get, Query } from '@nestjs/common';
 import { DoctorSignupDto } from './dto/doctor-signup.dto';
 import { PatientSignupDto } from './dto/patient-signup.dto';
 import { SigninDto } from './dto/signin.dto';
@@ -17,6 +17,40 @@ export class AuthController {
               private readonly jwtService: JwtService,
               private readonly config: ConfigService,
             ) {}
+
+
+  @Get('google')
+  @Redirect()
+  async googleLogin(@Query('role') role: string, @Res() res: Response) {
+  if (!role || !['doctor', 'patient'].includes(role.toLowerCase()))
+    throw new BadRequestException('Role must be doctor or patient');
+
+  const redirectUrl = await this.authService.getGoogleAuthURL(role.toLowerCase());
+  return { url: redirectUrl };
+}
+
+@Get('google/callback')
+async googleCallback(@Req() req: Request, @Res({ passthrough: true }) res: Response, @Query('code') code: string, @Query('state') state: string) {
+  const { access_token, refresh_token, user } = await this.authService.handleGoogleCallback(code, state);
+
+  res.cookie('access_token', access_token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 1000,
+  });
+
+  res.cookie('refresh_token', refresh_token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  return { message: 'Login successful', user };
+}
+
 
   @Post('doctor-signup')
 signupDoctor(@Body() dto: DoctorSignupDto) {

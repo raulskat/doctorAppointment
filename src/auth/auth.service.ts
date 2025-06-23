@@ -14,11 +14,13 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PatientSignupDto } from './dto/patient-signup.dto';
 import { Gender, Patient } from '../patients/entities/patient.entity';
-import { User,UserRole } from '../users/entities/user.entity';
+import { Provider, User,UserRole } from '../users/entities/user.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
+import { google } from 'googleapis';
 
 @Injectable()
 export class AuthService {
+  private oauth2Client;
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
@@ -31,13 +33,22 @@ export class AuthService {
 
     private jwtService: JwtService,
     private config: ConfigService,
-  ) {}
+  ) {
+     {
+    this.oauth2Client = new google.auth.OAuth2(
+      this.config.get('GOOGLE_CLIENT_ID'),
+      this.config.get('GOOGLE_CLIENT_SECRET'),
+      this.config.get('GOOGLE_REDIRECT_URI'),
+    );
+  }
+  }
 
 
 
   // sign up
 
   // update path if needed
+  
 
 async signupDoctor(dto: DoctorSignupDto) {
   const existing = await this.userRepo.findOne({ where: { email: dto.email } });
@@ -113,6 +124,95 @@ async signupPatient(dto: PatientSignupDto) {
   };
 }
 
+async getGoogleAuthURL(role: string): Promise<string> {
+  const url = this.oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: ['profile', 'email'],
+    state: role,
+  });
+  return url;
+}
+
+async handleGoogleCallback(code: string, role: string) {
+  // Get tokens from Google
+  const { tokens: googleTokens } = await this.oauth2Client.getToken(code);
+  this.oauth2Client.setCredentials(googleTokens);
+
+  // Get user profile from Google
+  const oauth2 = google.oauth2({ version: 'v2', auth: this.oauth2Client });
+  const { data: profile } = await oauth2.userinfo.get();
+
+  if (!profile.email) {
+    throw new BadRequestException('Google account does not have a verified email.');
+  }
+
+  // Check for existing user in DB
+  const existingUser = await this.userRepo.findOne({
+    where: { email: profile.email },
+    relations: ['doctor', 'patient'],
+  });
+
+  // If registered with local credentials, block login
+  if (existingUser && existingUser.provider === 'local') {
+    throw new BadRequestException(
+      'This account was registered using email/password. Please login using email.',
+    );
+  }
+
+  if (existingUser) {
+    const jwtTokens = await this.generateTokens(
+      existingUser.user_id,
+      existingUser.email,
+      existingUser.role,
+    );
+
+    await this.updateRefreshToken(existingUser.user_id, jwtTokens.refresh_token);
+
+    return {
+      ...jwtTokens,
+      user: {
+        user_id: existingUser.user_id,
+        email: existingUser.email,
+        role: existingUser.role,
+        doctor_id: existingUser.doctor?.doctor_id,
+        patient_id: existingUser.patient?.patient_id,
+      },
+    };
+  }
+
+  // Register new user
+  const user = this.userRepo.create({
+  email: profile.email,
+  password: null,
+  provider: Provider.GOOGLE, // Use the correct enum value
+  role: role === 'doctor' ? UserRole.DOCTOR : UserRole.PATIENT,
+});
+const savedUser = await this.userRepo.save(user);
+
+  // Create doctor/patient profile with empty fields initially
+//   if (role === 'doctor') {
+//     const doctor = this.doctorRepo.create({ user: savedUser });
+//   await this.doctorRepo.save(doctor);
+//   } else {
+//     const patient = this.patientRepo.create({ user: savedUser });
+// await this.patientRepo.save(patient);
+
+//   }
+
+  const jwtTokens = await this.generateTokens(savedUser.user_id, savedUser.email, savedUser.role);
+  await this.updateRefreshToken(savedUser.user_id, jwtTokens.refresh_token);
+
+  return {
+    ...jwtTokens,
+    user: {
+      user_id: savedUser.user_id,
+      email: savedUser.email,
+      role: savedUser.role,
+    },
+  };
+}
+
+
 
 
 
@@ -125,8 +225,14 @@ async signupPatient(dto: PatientSignupDto) {
       where: { email: dto.email },
       relations: ['doctor', 'patient'],
     });
+    
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
+    // 🛡️ Block OAuth users from using local signin
+  if (user.provider !== 'local' || !user.password) {
+    throw new UnauthorizedException('Please login using Google OAuth.');
+  }
+
 
     const passwordMatches = await bcrypt.compare(dto.password, user.password);
     if (!passwordMatches) throw new UnauthorizedException('Invalid credentials');
