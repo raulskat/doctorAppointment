@@ -17,10 +17,16 @@ import { Gender, Patient } from '../patients/entities/patient.entity';
 import { Provider, User,UserRole } from '../users/entities/user.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
 import { google } from 'googleapis';
+import {
+  GoogleCallbackResponse,
+  ExistingUserResponse,
+  NewUserResponse,
+} from './types/auth.types';
 
 @Injectable()
 export class AuthService {
   private oauth2Client;
+  
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
@@ -133,7 +139,7 @@ async getGoogleAuthURL(role: string): Promise<string> {
   return url;
 }
 
-async handleGoogleCallback(code: string, role: string) {
+async handleGoogleCallback(code: string, role: string): Promise<GoogleCallbackResponse> {
   // Get tokens from Google
   const { tokens: googleTokens } = await this.oauth2Client.getToken(code);
   this.oauth2Client.setCredentials(googleTokens);
@@ -169,6 +175,7 @@ async handleGoogleCallback(code: string, role: string) {
     await this.updateRefreshToken(existingUser.user_id, jwtTokens.refresh_token);
 
     return {
+      status: 'existing',
       ...jwtTokens,
       user: {
         user_id: existingUser.user_id,
@@ -189,28 +196,93 @@ async handleGoogleCallback(code: string, role: string) {
 });
 const savedUser = await this.userRepo.save(user);
 
-  // Create doctor/patient profile with empty fields initially
-//   if (role === 'doctor') {
-//     const doctor = this.doctorRepo.create({ user: savedUser });
-//   await this.doctorRepo.save(doctor);
-//   } else {
-//     const patient = this.patientRepo.create({ user: savedUser });
-// await this.patientRepo.save(patient);
+ const tempToken = await this.jwtService.signAsync(
+  { user_id: savedUser.user_id, email: savedUser.email, role: savedUser.role },
+  { secret: this.config.get('JWT_ACCESS_SECRET'), expiresIn: '15m' },
+);
+return {
+  status: 'new',
+  message: 'Google login successful. Please complete profile.',
+  temp_token: tempToken,
+  user: {
+    user_id: savedUser.user_id,
+    email: savedUser.email,
+    role: savedUser.role,
+  },
+};
 
-//   }
+  // const jwtTokens = await this.generateTokens(savedUser.user_id, savedUser.email, savedUser.role);
+  // await this.updateRefreshToken(savedUser.user_id, jwtTokens.refresh_token);
 
-  const jwtTokens = await this.generateTokens(savedUser.user_id, savedUser.email, savedUser.role);
-  await this.updateRefreshToken(savedUser.user_id, jwtTokens.refresh_token);
-
-  return {
-    ...jwtTokens,
-    user: {
-      user_id: savedUser.user_id,
-      email: savedUser.email,
-      role: savedUser.role,
-    },
-  };
+  // return {
+  //   ...jwtTokens,
+  //   user: {
+  //     user_id: savedUser.user_id,
+  //     email: savedUser.email,
+  //     role: savedUser.role,
+  //   },
+  // };
 }
+
+// auth.service.ts
+async completeGoogleSignup(
+  dto: DoctorSignupDto | PatientSignupDto,
+  userPayload: { user_id: number; email: string; role: UserRole },
+) {
+  const user = await this.userRepo.findOne({
+    where: { user_id: userPayload.user_id },
+    relations: ['doctor', 'patient'],
+  });
+
+  if (!user) throw new BadRequestException('User not found');
+
+  if (user.role === UserRole.DOCTOR) {
+    if (user.doctor) {
+      throw new BadRequestException('Doctor profile already exists');
+    }
+
+    const doctor = this.doctorRepo.create({
+      user,
+      first_name: (dto as DoctorSignupDto).first_name,
+      last_name: (dto as DoctorSignupDto).last_name,
+      specialization: (dto as DoctorSignupDto).specialization,
+      experience_years: (dto as DoctorSignupDto).experience_years,
+      phone_number: (dto as DoctorSignupDto).phone_number,
+      education: (dto as DoctorSignupDto).education,
+      clinic_name: (dto as DoctorSignupDto).clinic_name,
+      clinic_address: (dto as DoctorSignupDto).clinic_address,
+      available_days: (dto as DoctorSignupDto).available_days,
+      available_time_slots: (dto as DoctorSignupDto).available_time_slots,
+    });
+
+    await this.doctorRepo.save(doctor);
+    return { message: 'Doctor profile completed successfully' };
+  }
+
+  if (user.role === UserRole.PATIENT) {
+    if (user.patient) {
+      throw new BadRequestException('Patient profile already exists');
+    }
+
+    const patient = this.patientRepo.create({
+      user,
+      first_name: (dto as PatientSignupDto).first_name,
+      last_name: (dto as PatientSignupDto).last_name,
+      phone_number: (dto as PatientSignupDto).phone_number,
+      gender: (dto as PatientSignupDto).gender,
+      dob: (dto as PatientSignupDto).dob,
+      address: (dto as PatientSignupDto).address,
+      emergency_contact: (dto as PatientSignupDto).emergency_contact,
+      medical_history: (dto as PatientSignupDto).medical_history,
+    });
+
+    await this.patientRepo.save(patient);
+    return { message: 'Patient profile completed successfully' };
+  }
+
+  throw new BadRequestException('Invalid user role');
+}
+
 
 
 
