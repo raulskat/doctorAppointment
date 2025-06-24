@@ -69,14 +69,14 @@ async signupDoctor(dto: DoctorSignupDto) {
 });
   const savedDoctor = await this.doctorRepo.save(doctor);
 
+
   return {
     savedDoctor,
     message: 'Doctor registered successfully',
     user_id: savedUser.user_id,
   };
 }
-
- // if not imported yet
+ 
 
 async signupPatient(dto: PatientSignupDto) {
   const existing = await this.userRepo.findOne({ where: { email: dto.email } });
