@@ -64,7 +64,6 @@ const savedDoctor = await this.doctorRepo.save(doctor);
 
     return {
       message: 'Doctor registered successfully',
-      doctor_id: savedDoctor.doctor_id,
       user_id: savedUser.user_id,
     };
   }
@@ -97,7 +96,6 @@ const savedDoctor = await this.doctorRepo.save(doctor);
     user: {
     user_id: user.user_id,
     email: user.email,
-    doctor_id: user.doctor?.doctor_id,
     first_name: user.doctor?.first_name,
     last_name: user.doctor?.last_name,
     specialization: user.doctor?.specialization,
@@ -151,7 +149,6 @@ async refreshTokens(refreshToken: string) {
         user_id: user.user_id,
         email: user.email,
         role: user.role,
-        doctor_id: user.doctor?.doctor_id,
         first_name: user.doctor?.first_name,
         last_name: user.doctor?.last_name,
       }
