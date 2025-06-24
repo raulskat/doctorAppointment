@@ -28,18 +28,19 @@ export class User {
   @Column({ type: 'enum', enum: UserRole })
   role: UserRole;
 
-  @Column({ nullable: false })
-  hashedRefreshToken: string;
-
   @CreateDateColumn()
   created_at: Date;
 
   @UpdateDateColumn({ default: () => 'NOW()', nullable: false })
   last_login: Date;
 
-  @OneToOne(() => Doctor, doctor => doctor.user)
+  @OneToOne(() => Doctor, doctor => doctor.user, { nullable: true })
   doctor: Doctor;
 
-  @OneToOne(() => Patient, patient => patient.user)
+  @OneToOne(() => Patient, patient => patient.user, { nullable: true })
   patient: Patient;
+
+  @Column({ type: 'text', nullable: true })
+  hashedRefreshToken?: string | null;
 }
+

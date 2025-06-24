@@ -9,7 +9,7 @@ import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
-
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -18,7 +18,8 @@ import { PatientsModule } from './patients/patients.module';
             HelloWorldModule,
             UsersModule,
             DoctorsModule,
-            PatientsModule],
+            PatientsModule,
+            AuthModule],
   controllers: [AppController],
   providers: [AppService],
 })

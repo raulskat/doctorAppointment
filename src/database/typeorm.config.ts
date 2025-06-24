@@ -13,4 +13,6 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   autoLoadEntities: true,
   synchronize: false, // ❗Set to false in production
   migrations: ['dist/migrations/*.js'],
+  logging: true,
+  logger: 'advanced-console',
 };

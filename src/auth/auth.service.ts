@@ -1,0 +1,188 @@
+// src/auth/auth.service.ts
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException
+} from '@nestjs/common';
+import { SignupDto } from './dto/signup.dto';
+import { SigninDto } from './dto/signin.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+
+import { User,UserRole } from '../users/entities/user.entity';
+import { Doctor } from '../doctors/entities/doctor.entity';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
+
+    @InjectRepository(Doctor)
+    private doctorRepo: Repository<Doctor>,
+
+    private jwtService: JwtService,
+    private config: ConfigService,
+  ) {}
+
+
+
+  // sign up
+
+  async signup(dto: SignupDto) {
+    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (existing) throw new BadRequestException('Email already registered');
+
+    
+
+    const user = this.userRepo.create({
+  email: dto.email,
+  password: await bcrypt.hash(dto.password, 10),
+  role: UserRole.DOCTOR,
+});
+const savedUser = await this.userRepo.save(user);
+
+const doctor = this.doctorRepo.create({
+  user: savedUser,
+  first_name: dto.first_name,
+  last_name: dto.last_name,
+  specialization: dto.specialization,
+  experience_years: 0,
+  phone_number: dto.phone_number,
+  education: dto.education,
+  clinic_name: dto.clinic_name,
+  clinic_address: dto.clinic_address,
+  available_days: dto.available_days,
+  available_time_slots: dto.available_time_slots,
+});
+const savedDoctor = await this.doctorRepo.save(doctor);
+
+
+    return {
+      message: 'Doctor registered successfully',
+      user_id: savedUser.user_id,
+      savedDoctor
+    };
+  }
+
+
+
+
+// sign-in
+
+  async signin(dto: SigninDto) {
+    const user = await this.userRepo.findOne({ where: { email: dto.email },
+    relations: ['doctor'], });
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    const passwordMatches = await bcrypt.compare(dto.password, user.password);
+    if (!passwordMatches) throw new UnauthorizedException('Invalid credentials');
+
+    if (user.role !== UserRole.DOCTOR)
+      throw new UnauthorizedException('Access denied');
+
+    const tokens = await this.generateTokens(user.user_id, user.email, user.role);
+    
+    // Optional: save hashed refresh token in DB if using token rotation
+    
+    await this.updateRefreshToken(user.user_id, tokens.refresh_token);
+    
+
+    return {
+    ...tokens,
+    user: {
+    user_id: user.user_id,
+    email: user.email,
+    first_name: user.doctor?.first_name,
+    last_name: user.doctor?.last_name,
+    specialization: user.doctor?.specialization,
+    experience_years: user.doctor?.experience_years,
+  }
+  };
+  }
+
+//  sign-out
+  async signout(userId: number) {
+  await this.userRepo.update(userId, {
+    hashedRefreshToken: null,
+  });
+  return { message: 'Sign-out successful' };
+  }
+
+  
+
+
+// 
+
+
+
+async refreshTokens(refreshToken: string) {
+  try {
+    const payload = this.jwtService.verify(refreshToken, {
+      secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+    });
+
+    const user = await this.userRepo.findOne({
+      where: { user_id: payload.sub },
+      relations: ['doctor'], // if you need doctor data in response
+    });
+
+    if (!user || !user.hashedRefreshToken)
+      throw new ForbiddenException('Access Denied');
+
+    const isTokenMatching = await bcrypt.compare(
+      refreshToken,
+      user.hashedRefreshToken,
+    );
+
+    if (!isTokenMatching) throw new ForbiddenException('Invalid Refresh Token');
+
+    const tokens = await this.generateTokens(user.user_id, user.email,user.role);
+    await this.updateRefreshToken(user.user_id, tokens.refresh_token);
+
+    return {
+      ...tokens,
+      user: {
+        user_id: user.user_id,
+        email: user.email,
+        role: user.role,
+        first_name: user.doctor?.first_name,
+        last_name: user.doctor?.last_name,
+      }
+    };
+  } catch (error) {
+    throw new ForbiddenException('Invalid or Expired Refresh Token');
+  }
+}
+
+
+
+async updateRefreshToken(userId: number, refreshToken: string) {
+  const hashed = await bcrypt.hash(refreshToken, 10);
+  await this.userRepo.update(userId, {
+    hashedRefreshToken: hashed,
+  });
+}
+
+  async generateTokens(userId: number, email: string, role: UserRole) {
+    const payload = { sub: userId, email, role };
+
+  const [access_token, refresh_token] = await Promise.all([
+    this.jwtService.signAsync(payload, {
+      secret: this.config.get('JWT_ACCESS_SECRET'),
+      expiresIn: '1h',
+    }),
+    this.jwtService.signAsync(payload, {
+      secret: this.config.get('JWT_REFRESH_SECRET'),
+      expiresIn: '7d',
+    }),
+  ]);
+
+    return { access_token, refresh_token };
+  }
+
+}
