@@ -28,7 +28,6 @@ export class User {
   @Column({ type: 'enum', enum: UserRole })
   role: UserRole;
 
-
   @CreateDateColumn()
   created_at: Date;
 
