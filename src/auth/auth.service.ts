@@ -179,7 +179,7 @@ async signupPatient(dto: PatientSignupDto) {
 //  sign-out
   async signout(userId: number) {
   await this.userRepo.update(userId, {
-    hashedRefreshToken: "",
+    hashedRefreshToken: null,
   });
   return { message: 'Sign-out successful' };
   }
