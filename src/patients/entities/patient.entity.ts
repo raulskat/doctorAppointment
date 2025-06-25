@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   OneToOne,
   OneToMany,
@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { Appointment } from 'src/appointments/entities/appointment.entity';
+
 
 export enum Gender {
   MALE = 'male',
@@ -19,10 +19,10 @@ export enum Gender {
 
 @Entity()
 export class Patient {
-  @PrimaryGeneratedColumn()
-  patient_id: number;
+  @PrimaryColumn()
+  user_id: number;
 
-  @OneToOne(() => User, user => user.patient, { eager: true })
+  @OneToOne(() => User, user => user.patient, { eager: true, cascade: true })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
@@ -56,6 +56,5 @@ export class Patient {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @OneToMany(() => Appointment, appointment => appointment.patient)
-  appointments: Appointment[];
+  
 }

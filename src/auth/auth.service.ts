@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
   ForbiddenException
 } from '@nestjs/common';
-import { DoctorSignupDto } from './dto/doctor-signup.dto';
+import { SignupDto } from './dto/signup.dto';
 import { SigninDto } from './dto/signin.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -54,83 +54,7 @@ export class AuthService {
   // sign up
 
   // update path if needed
-  
-
-async signupDoctor(dto: DoctorSignupDto) {
-  const existing = await this.userRepo.findOne({ where: { email: dto.email } });
-  if (existing) throw new BadRequestException('Email already registered');
-
-  if (dto.role !== UserRole.DOCTOR) {
-  throw new BadRequestException('Invalid role for this endpoint');
-}
-
-  const user = this.userRepo.create({
-    email: dto.email,
-    password: await bcrypt.hash(dto.password, 10),
-    role: UserRole.DOCTOR,
-  });
-  const savedUser = await this.userRepo.save(user);
-
-  const doctor = this.doctorRepo.create({
-    user: savedUser,
-    first_name: dto.first_name,
-    last_name: dto.last_name,
-    specialization: dto.specialization,
-    experience_years: dto.experience_years,
-    phone_number: dto.phone_number,
-    education: dto.education,
-    clinic_name: dto.clinic_name,
-    clinic_address: dto.clinic_address,
-    available_days: dto.available_days,
-    available_time_slots: dto.available_time_slots,
-});
-  const savedDoctor = await this.doctorRepo.save(doctor);
-
-  return {
-    message: 'Doctor registered successfully',
-    doctor_id: savedDoctor.doctor_id,
-    user_id: savedUser.user_id,
-  };
-}
-
- // if not imported yet
-
-async signupPatient(dto: PatientSignupDto) {
-  const existing = await this.userRepo.findOne({ where: { email: dto.email } });
-  if (existing) throw new BadRequestException('Email already registered');
-
-  if (dto.role !== UserRole.PATIENT) {
-  throw new BadRequestException('Invalid role for this endpoint');
-}
-
-  const user = this.userRepo.create({
-    email: dto.email,
-    password: await bcrypt.hash(dto.password, 10),
-    role: UserRole.PATIENT,
-  });
-  const savedUser = await this.userRepo.save(user);
-
-  const patient = this.patientRepo.create({
-    user: savedUser,
-    first_name: dto.first_name,
-    last_name: dto.last_name,
-    phone_number: dto.phone_number,
-    gender: dto.gender,
-    dob: dto.dob,
-    address: dto.address,
-    emergency_contact: dto.emergency_contact,
-    medical_history: dto.medical_history,
-  });
-  const savedPatient = await this.patientRepo.save(patient);
-
-  return {
-    message: 'Patient registered successfully',
-    patient_id: savedPatient.patient_id,
-    user_id: savedUser.user_id,
-  };
-}
-
-async getGoogleAuthURL(role: string): Promise<string> {
+  async getGoogleAuthURL(role: string): Promise<string> {
   const url = this.oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: ['profile', 'email'],
@@ -181,8 +105,6 @@ async handleGoogleCallback(code: string, role: string): Promise<GoogleCallbackRe
         user_id: existingUser.user_id,
         email: existingUser.email,
         role: existingUser.role,
-        doctor_id: existingUser.doctor?.doctor_id,
-        patient_id: existingUser.patient?.patient_id,
       },
     };
   }
@@ -226,7 +148,7 @@ return {
 
 // auth.service.ts
 async completeGoogleSignup(
-  dto: DoctorSignupDto | PatientSignupDto,
+  dto: SignupDto,
   userPayload: { user_id: number; email: string; role: UserRole },
 ) {
   const user = await this.userRepo.findOne({
@@ -243,16 +165,16 @@ async completeGoogleSignup(
 
     const doctor = this.doctorRepo.create({
       user,
-      first_name: (dto as DoctorSignupDto).first_name,
-      last_name: (dto as DoctorSignupDto).last_name,
-      specialization: (dto as DoctorSignupDto).specialization,
-      experience_years: (dto as DoctorSignupDto).experience_years,
-      phone_number: (dto as DoctorSignupDto).phone_number,
-      education: (dto as DoctorSignupDto).education,
-      clinic_name: (dto as DoctorSignupDto).clinic_name,
-      clinic_address: (dto as DoctorSignupDto).clinic_address,
-      available_days: (dto as DoctorSignupDto).available_days,
-      available_time_slots: (dto as DoctorSignupDto).available_time_slots,
+      first_name: (dto as SignupDto).first_name,
+      last_name: (dto as SignupDto).last_name,
+      specialization: (dto as SignupDto).specialization,
+      experience_years: (dto as SignupDto).experience_years,
+      phone_number: (dto as SignupDto).phone_number,
+      education: (dto as SignupDto).education,
+      clinic_name: (dto as SignupDto).clinic_name,
+      clinic_address: (dto as SignupDto).clinic_address,
+      available_days: (dto as SignupDto).available_days,
+      available_time_slots: (dto as SignupDto).available_time_slots,
     });
 
     await this.doctorRepo.save(doctor);
@@ -283,6 +205,63 @@ async completeGoogleSignup(
   throw new BadRequestException('Invalid user role');
 }
 
+async signup(dto: SignupDto) {
+  const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+  if (existing) throw new BadRequestException('Email already registered');
+
+  const user = this.userRepo.create({
+    email: dto.email,
+    password: await bcrypt.hash(dto.password, 10),
+    role: dto.role,
+  });
+  const savedUser = await this.userRepo.save(user);
+
+  if (dto.role === UserRole.DOCTOR) {
+    const doctor = this.doctorRepo.create({
+      user: savedUser,
+      first_name: dto.first_name,
+      last_name: dto.last_name,
+      specialization: dto.specialization,
+      experience_years: dto.experience_years,
+      phone_number: dto.phone_number,
+      education: dto.education,
+      clinic_name: dto.clinic_name,
+      clinic_address: dto.clinic_address,
+      available_days: dto.available_days,
+      available_time_slots: dto.available_time_slots,
+    });
+    const savedDoctor = await this.doctorRepo.save(doctor);
+
+    return {
+      savedDoctor,
+      message: 'Doctor registered successfully',
+      user_id: savedUser.user_id,
+    };
+  }
+
+  if (dto.role === UserRole.PATIENT) {
+    const patient = this.patientRepo.create({
+      user: savedUser,
+      first_name: dto.first_name,
+      last_name: dto.last_name,
+      phone_number: dto.phone_number,
+      gender: dto.gender,
+      dob: dto.dob,
+      address: dto.address,
+      emergency_contact: dto.emergency_contact,
+      medical_history: dto.medical_history ?? "",
+    });
+    const savedPatient = await this.patientRepo.save(patient);
+
+    return {
+      savedPatient,
+      message: 'Patient registered successfully',
+      user_id: savedUser.user_id,
+    };
+  }
+
+  throw new BadRequestException('Invalid role');
+}
 
 
 
@@ -319,7 +298,6 @@ async completeGoogleSignup(
           Object.assign(userInfo, {
                 user_id: user.user_id,
                 email: user.email,
-                doctor_id: user.doctor?.doctor_id,
                 first_name: user.doctor?.first_name,
                 last_name: user.doctor?.last_name,
                 specialization: user.doctor?.specialization,
@@ -330,7 +308,6 @@ async completeGoogleSignup(
           const age = dob ? this.calculateAge(dob) : null;
 
           Object.assign(userInfo, {
-            patient_id: user.patient?.patient_id,
             first_name: user.patient?.first_name,
             last_name: user.patient?.last_name,
             phone_number: user.patient?.phone_number,
@@ -399,7 +376,6 @@ async refreshTokens(refreshToken: string) {
         user_id: user.user_id,
         email: user.email,
         role: user.role,
-        doctor_id: user.doctor?.doctor_id,
         first_name: user.doctor?.first_name,
         last_name: user.doctor?.last_name,
       }

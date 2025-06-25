@@ -9,8 +9,6 @@ import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
-import { AppointmentsModule } from './appointments/appointments.module';
-import { TimeslotsModule } from './timeslots/timeslots.module';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
@@ -21,8 +19,6 @@ import { AuthModule } from './auth/auth.module';
             UsersModule,
             DoctorsModule,
             PatientsModule,
-            AppointmentsModule,
-            TimeslotsModule,
             AuthModule],
   controllers: [AppController],
   providers: [AppService],

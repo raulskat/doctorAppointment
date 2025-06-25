@@ -22,7 +22,6 @@ export class DoctorsService {
     }
 
     return {
-      doctor_id: doctor.doctor_id,
       first_name: doctor.first_name,
       last_name: doctor.last_name,
       specialization: doctor.specialization,

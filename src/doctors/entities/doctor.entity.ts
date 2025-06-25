@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   OneToOne,
   OneToMany,
@@ -9,15 +9,14 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { TimeSlot } from 'src/timeslots/entities/timeslot.entity';
-import { Appointment } from 'src/appointments/entities/appointment.entity';
+
 
 @Entity()
 export class Doctor {
-  @PrimaryGeneratedColumn()
-  doctor_id: number;
+  @PrimaryColumn()
+  user_id: number;
 
-  @OneToOne(() => User, user => user.doctor, { eager: true })
+  @OneToOne(() => User, user => user.doctor, { eager: true, cascade: true })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
@@ -57,9 +56,5 @@ export class Doctor {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @OneToMany(() => Appointment, appointment => appointment.doctor)
-  appointments: Appointment[];
-
-  @OneToMany(() => TimeSlot, timeslot => timeslot.doctor)
-  timeslots: TimeSlot[];
+  
 }

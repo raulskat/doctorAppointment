@@ -22,7 +22,6 @@ export class PatientsService {
     }
 
     return {
-      patient_id: patient.patient_id,
       first_name: patient.first_name,
       last_name: patient.last_name,
       phone_number: patient.phone_number,
