@@ -1,17 +1,36 @@
 // src/auth/dto/signup.dto.ts
-import { IsEmail, IsNotEmpty, MinLength,Min, Max, IsInt, IsString, IsEnum } from 'class-validator';
-import { UserRole } from 'src/users/entities/user.entity';
+import {
+  IsEmail,
+  IsEnum,
+  IsString,
+  IsDateString,
+  MinLength,
+  IsOptional,
+  IsNotEmpty,
+  IsInt,
+  Min,
+  Max,
+  Validate,
+} from 'class-validator';
+import { Gender } from '../../patients/entities/patient.entity';
+import { UserRole } from '../../users/entities/user.entity';
+import { RoleBasedSignupValidator } from '../validators/role-based-signup.validator';
+
 
 export class SignupDto {
+  @IsNotEmpty()
   @IsEmail()
   email: string;
 
+  @IsNotEmpty()
   @MinLength(6)
   password: string;
 
+  @IsNotEmpty()
   @IsEnum(UserRole)
   role: UserRole;
 
+  // Common
   @IsNotEmpty()
   @IsString()
   first_name: string;
@@ -20,36 +39,64 @@ export class SignupDto {
   @IsString()
   last_name: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  specialization: string;
+  phone_number?: string;
 
+  // Doctor-specific (optional here, required via custom validator)
+  @IsOptional()
+  @IsString()
+  specialization?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Max(80)
-  experience_years: number;
+  experience_years?: number;
 
-  @IsNotEmpty()
-  @IsString()
-  phone_number: string;
+  
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  education: string;
+  education?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  clinic_name: string;
+  clinic_name?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  clinic_address: string;
+  clinic_address?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  available_days: string;
+  available_days?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  available_time_slots: string;
+  available_time_slots?: string;
+
+  // Patient-specific
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
+
+  @IsOptional()
+  @IsDateString()
+  dob?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  emergency_contact?: string;
+
+  @IsOptional()
+  @IsString()
+  medical_history?: string;
+
+  @Validate(RoleBasedSignupValidator)
+  __roleValidator__: string;
 }

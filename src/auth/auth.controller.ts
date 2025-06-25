@@ -1,4 +1,5 @@
 // src/auth/auth.controller.ts
+
 import { Body, Controller, Post, Req, Res, ForbiddenException } from '@nestjs/common';
 import { SignupDto } from './dto/signup.dto';
 import { SigninDto } from './dto/signin.dto';
@@ -8,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
 
-@Controller('api/v1/auth')
+@Controller('auth')
 export class AuthController {
   constructor(
               private readonly authService: AuthService,
@@ -16,10 +17,10 @@ export class AuthController {
               private readonly config: ConfigService,
             ) {}
 
-  @Post('signup')
+  @Post('/signup')
   signup(@Body() dto: SignupDto) {
-    return this.authService.signup(dto);
-  }
+  return this.authService.signup(dto);
+}
 
   @Post('signin')
   async signin(@Body() dto: SigninDto, @Res({ passthrough: true }) res: Response) {
