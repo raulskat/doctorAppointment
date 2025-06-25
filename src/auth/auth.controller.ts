@@ -1,8 +1,7 @@
 // src/auth/auth.controller.ts
 
 import { Body, Controller, Post, Req, Res, ForbiddenException } from '@nestjs/common';
-import { DoctorSignupDto } from './dto/doctor-signup.dto';
-import { PatientSignupDto } from './dto/patient-signup.dto';
+import { SignupDto } from './dto/signup.dto';
 import { SigninDto } from './dto/signin.dto';
 import { AuthService } from './auth.service';
 import { Request,Response } from 'express';
@@ -18,14 +17,9 @@ export class AuthController {
               private readonly config: ConfigService,
             ) {}
 
-  @Post('doctor-signup')
-signupDoctor(@Body() dto: DoctorSignupDto) {
-  return this.authService.signupDoctor(dto);
-}
-
-@Post('patient-signup')
-signupPatient(@Body() dto: PatientSignupDto) {
-  return this.authService.signupPatient(dto);
+  @Post('/signup')
+  signup(@Body() dto: SignupDto) {
+  return this.authService.signup(dto);
 }
 
   @Post('signin')

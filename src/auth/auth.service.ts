@@ -5,14 +5,13 @@ import {
   UnauthorizedException,
   ForbiddenException
 } from '@nestjs/common';
-import { DoctorSignupDto } from './dto/doctor-signup.dto';
+import { SignupDto } from './dto/signup.dto';
 import { SigninDto } from './dto/signin.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { PatientSignupDto } from './dto/patient-signup.dto';
 import { Gender, Patient } from '../patients/entities/patient.entity';
 import { User,UserRole } from '../users/entities/user.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
@@ -39,79 +38,64 @@ export class AuthService {
 
   // update path if needed
 
-async signupDoctor(dto: DoctorSignupDto) {
+async signup(dto: SignupDto) {
   const existing = await this.userRepo.findOne({ where: { email: dto.email } });
   if (existing) throw new BadRequestException('Email already registered');
-
-  if (dto.role !== UserRole.DOCTOR) {
-  throw new BadRequestException('Invalid role for this endpoint');
-}
 
   const user = this.userRepo.create({
     email: dto.email,
     password: await bcrypt.hash(dto.password, 10),
-    role: UserRole.DOCTOR,
+    role: dto.role,
   });
   const savedUser = await this.userRepo.save(user);
 
-  const doctor = this.doctorRepo.create({
-    user: savedUser,
-    first_name: dto.first_name,
-    last_name: dto.last_name,
-    specialization: dto.specialization,
-    experience_years: dto.experience_years,
-    phone_number: dto.phone_number,
-    education: dto.education,
-    clinic_name: dto.clinic_name,
-    clinic_address: dto.clinic_address,
-    available_days: dto.available_days,
-    available_time_slots: dto.available_time_slots,
-});
-  const savedDoctor = await this.doctorRepo.save(doctor);
+  if (dto.role === UserRole.DOCTOR) {
+    const doctor = this.doctorRepo.create({
+      user: savedUser,
+      first_name: dto.first_name,
+      last_name: dto.last_name,
+      specialization: dto.specialization,
+      experience_years: dto.experience_years,
+      phone_number: dto.phone_number,
+      education: dto.education,
+      clinic_name: dto.clinic_name,
+      clinic_address: dto.clinic_address,
+      available_days: dto.available_days,
+      available_time_slots: dto.available_time_slots,
+    });
+    const savedDoctor = await this.doctorRepo.save(doctor);
 
+    return {
+      savedDoctor,
+      message: 'Doctor registered successfully',
+      user_id: savedUser.user_id,
+    };
+  }
 
-  return {
-    savedDoctor,
-    message: 'Doctor registered successfully',
-    user_id: savedUser.user_id,
-  };
+  if (dto.role === UserRole.PATIENT) {
+    const patient = this.patientRepo.create({
+      user: savedUser,
+      first_name: dto.first_name,
+      last_name: dto.last_name,
+      phone_number: dto.phone_number,
+      gender: dto.gender,
+      dob: dto.dob,
+      address: dto.address,
+      emergency_contact: dto.emergency_contact,
+      medical_history: dto.medical_history ?? "",
+    });
+    const savedPatient = await this.patientRepo.save(patient);
+
+    return {
+      savedPatient,
+      message: 'Patient registered successfully',
+      user_id: savedUser.user_id,
+    };
+  }
+
+  throw new BadRequestException('Invalid role');
 }
- 
 
-async signupPatient(dto: PatientSignupDto) {
-  const existing = await this.userRepo.findOne({ where: { email: dto.email } });
-  if (existing) throw new BadRequestException('Email already registered');
-
-  if (dto.role !== UserRole.PATIENT) {
-  throw new BadRequestException('Invalid role for this endpoint');
-}
-
-  const user = this.userRepo.create({
-    email: dto.email,
-    password: await bcrypt.hash(dto.password, 10),
-    role: UserRole.PATIENT,
-  });
-  const savedUser = await this.userRepo.save(user);
-
-  const patient = this.patientRepo.create({
-    user: savedUser,
-    first_name: dto.first_name,
-    last_name: dto.last_name,
-    phone_number: dto.phone_number,
-    gender: dto.gender,
-    dob: dto.dob,
-    address: dto.address,
-    emergency_contact: dto.emergency_contact,
-    medical_history: dto.medical_history,
-  });
-  const savedPatient = await this.patientRepo.save(patient);
-
-  return {
-    savedPatient,
-    message: 'Patient registered successfully',
-    user_id: savedUser.user_id,
-  };
-}
 
 
 
