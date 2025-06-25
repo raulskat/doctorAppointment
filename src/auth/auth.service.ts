@@ -12,7 +12,6 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { PatientSignupDto } from './dto/patient-signup.dto';
 import { Gender, Patient } from '../patients/entities/patient.entity';
 import { Provider, User,UserRole } from '../users/entities/user.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
@@ -188,14 +187,14 @@ async completeGoogleSignup(
 
     const patient = this.patientRepo.create({
       user,
-      first_name: (dto as PatientSignupDto).first_name,
-      last_name: (dto as PatientSignupDto).last_name,
-      phone_number: (dto as PatientSignupDto).phone_number,
-      gender: (dto as PatientSignupDto).gender,
-      dob: (dto as PatientSignupDto).dob,
-      address: (dto as PatientSignupDto).address,
-      emergency_contact: (dto as PatientSignupDto).emergency_contact,
-      medical_history: (dto as PatientSignupDto).medical_history,
+      first_name: (dto as SignupDto).first_name,
+      last_name: (dto as SignupDto).last_name,
+      phone_number: (dto as SignupDto).phone_number,
+      gender: (dto as SignupDto).gender,
+      dob: (dto as SignupDto).dob,
+      address: (dto as SignupDto).address,
+      emergency_contact: (dto as SignupDto).emergency_contact,
+      medical_history: (dto as SignupDto).medical_history,
     });
 
     await this.patientRepo.save(patient);

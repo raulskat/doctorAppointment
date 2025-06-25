@@ -1,6 +1,6 @@
 // src/auth/auth.controller.ts
 
-import { Body, Controller, Post, Req, Res, ForbiddenException } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, ForbiddenException, UseGuards, Get, Query, Redirect, BadRequestException } from '@nestjs/common';
 import { SignupDto } from './dto/signup.dto';
 import { SigninDto } from './dto/signin.dto';
 import { AuthService } from './auth.service';
@@ -71,22 +71,13 @@ async googleCallback(
 @UseGuards(JwtAuthGuard)
 @Post('google/complete-signup')
 async completeGoogleSignup(
-  @Body() dto: DoctorSignupDto | PatientSignupDto,
+  @Body() dto: SignupDto,
   @Req() req,
 ) {
   return this.authService.completeGoogleSignup(dto, req.user);
 }
 
 
-  @Post('doctor-signup')
-signupDoctor(@Body() dto: DoctorSignupDto) {
-  return this.authService.signupDoctor(dto);
-}
-
-@Post('patient-signup')
-signupPatient(@Body() dto: PatientSignupDto) {
-  return this.authService.signupPatient(dto);
-}
   @Post('/signup')
   signup(@Body() dto: SignupDto) {
   return this.authService.signup(dto);
