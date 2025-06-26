@@ -119,10 +119,7 @@ async completeGoogleSignup(
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.send({
-      access_token: data.access_token,
-      user: data.user,
-    });
+    return { access_token:data.access_token, user:data.user };
   });
 }
 
