@@ -21,9 +21,10 @@ export class AuthController {
 
   @Get('google')
   @Redirect()
-  async googleLogin(@Query('role') role: string, @Res() res: Response) {
-  if (!role || !['doctor', 'patient'].includes(role.toLowerCase()))
+async googleLogin(@Query('role') role: string) {
+  if (!role || !['doctor', 'patient'].includes(role.toLowerCase())) {
     throw new BadRequestException('Role must be doctor or patient');
+  }
 
   const redirectUrl = await this.authService.getGoogleAuthURL(role.toLowerCase());
   return { url: redirectUrl };
