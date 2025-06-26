@@ -8,6 +8,11 @@ import {
 } from 'typeorm';
 import { Doctor } from 'src/doctors/entities/doctor.entity';
 import { Patient } from 'src/patients/entities/patient.entity';
+export enum Provider {
+  LOCAL = 'local',
+  GOOGLE = 'google',
+}
+
 
 export enum UserRole {
   DOCTOR = 'doctor',
@@ -16,14 +21,17 @@ export enum UserRole {
 }
 @Entity()
 export class User {
+  @Column({ type: 'enum', enum: Provider, default: Provider.LOCAL })
+  provider: Provider;
+
   @PrimaryGeneratedColumn()
   user_id: number;
 
   @Column({ unique: true })
   email: string;
 
-  @Column()
-  password: string;
+  @Column({ type: 'varchar', nullable: true })
+password: string | null;
 
   @Column({ type: 'enum', enum: UserRole })
   role: UserRole;

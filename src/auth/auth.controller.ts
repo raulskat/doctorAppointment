@@ -1,12 +1,13 @@
 // src/auth/auth.controller.ts
 
-import { Body, Controller, Post, Req, Res, ForbiddenException } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, ForbiddenException, UseGuards, Get, Query, Redirect, BadRequestException } from '@nestjs/common';
 import { SignupDto } from './dto/signup.dto';
 import { SigninDto } from './dto/signin.dto';
 import { AuthService } from './auth.service';
 import { Request,Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtAuthGuard } from './guard/jwt-auth.guard';
 
 
 @Controller('auth')
@@ -16,6 +17,67 @@ export class AuthController {
               private readonly jwtService: JwtService,
               private readonly config: ConfigService,
             ) {}
+
+
+  @Get('google')
+  @Redirect()
+async googleLogin(@Query('role') role: string) {
+  if (!role || !['doctor', 'patient'].includes(role.toLowerCase())) {
+    throw new BadRequestException('Role must be doctor or patient');
+  }
+
+  const redirectUrl = await this.authService.getGoogleAuthURL(role.toLowerCase());
+  return { url: redirectUrl };
+}
+
+@Get('google/callback')
+async googleCallback(
+  @Req() req: Request,
+  @Res({ passthrough: true }) res: Response,
+  @Query('code') code: string,
+  @Query('state') state: string,
+) {
+  const result = await this.authService.handleGoogleCallback(code, state);
+
+  if (result.status === 'existing') {
+    const { access_token, refresh_token, user } = result;
+
+    res.cookie('access_token', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 1000, // 1 hour
+    });
+
+    res.cookie('refresh_token', refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    return {
+      message: 'Login successful',
+      user,
+    };
+  } else {
+    // status === 'new'
+    return {
+      message: result.message,
+      temp_token: result.temp_token,
+      user: result.user,
+    };
+  }
+}
+@UseGuards(JwtAuthGuard)
+@Post('google/complete-signup')
+async completeGoogleSignup(
+  @Body() dto: SignupDto,
+  @Req() req,
+) {
+  return this.authService.completeGoogleSignup(dto, req.user);
+}
+
 
   @Post('/signup')
   signup(@Body() dto: SignupDto) {
@@ -57,10 +119,7 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.send({
-      access_token: data.access_token,
-      user: data.user,
-    });
+    return { access_token:data.access_token, user:data.user };
   });
 }
 

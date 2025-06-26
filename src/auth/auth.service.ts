@@ -13,11 +13,19 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Gender, Patient } from '../patients/entities/patient.entity';
-import { User,UserRole } from '../users/entities/user.entity';
+import { Provider, User,UserRole } from '../users/entities/user.entity';
 import { Doctor } from '../doctors/entities/doctor.entity';
+import { google } from 'googleapis';
+import {
+  GoogleCallbackResponse,
+  ExistingUserResponse,
+  NewUserResponse,
+} from './types/auth.types';
 
 @Injectable()
 export class AuthService {
+  private oauth2Client;
+  
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
@@ -30,13 +38,171 @@ export class AuthService {
 
     private jwtService: JwtService,
     private config: ConfigService,
-  ) {}
+  ) {
+     {
+    this.oauth2Client = new google.auth.OAuth2(
+      this.config.get('GOOGLE_CLIENT_ID'),
+      this.config.get('GOOGLE_CLIENT_SECRET'),
+      this.config.get('GOOGLE_REDIRECT_URI'),
+    );
+  }
+  }
 
 
 
   // sign up
 
   // update path if needed
+  async getGoogleAuthURL(role: string): Promise<string> {
+  const url = this.oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: ['profile', 'email'],
+    state: role,
+  });
+  return url;
+}
+
+async handleGoogleCallback(code: string, role: string): Promise<GoogleCallbackResponse> {
+  // Get tokens from Google
+  const { tokens: googleTokens } = await this.oauth2Client.getToken(code);
+  this.oauth2Client.setCredentials(googleTokens);
+
+  // Get user profile from Google
+  const oauth2 = google.oauth2({ version: 'v2', auth: this.oauth2Client });
+  const { data: profile } = await oauth2.userinfo.get();
+
+  if (!profile.email) {
+    throw new BadRequestException('Google account does not have a verified email.');
+  }
+
+  // Check for existing user in DB
+  const existingUser = await this.userRepo.findOne({
+    where: { email: profile.email },
+    relations: ['doctor', 'patient'],
+  });
+
+  // If registered with local credentials, block login
+  if (existingUser && existingUser.provider === 'local') {
+    throw new BadRequestException(
+      'This account was registered using email/password. Please login using email.',
+    );
+  }
+
+  if (existingUser) {
+    const jwtTokens = await this.generateTokens(
+      existingUser.user_id,
+      existingUser.email,
+      existingUser.role,
+    );
+
+    await this.updateRefreshToken(existingUser.user_id, jwtTokens.refresh_token);
+
+    return {
+      status: 'existing',
+      ...jwtTokens,
+      user: {
+        user_id: existingUser.user_id,
+        email: existingUser.email,
+        role: existingUser.role,
+      },
+    };
+  }
+
+  // Register new user
+  const user = this.userRepo.create({
+  email: profile.email,
+  password: null,
+  provider: Provider.GOOGLE, // Use the correct enum value
+  role: role === 'doctor' ? UserRole.DOCTOR : UserRole.PATIENT,
+});
+const savedUser = await this.userRepo.save(user);
+
+ const tempToken = await this.jwtService.signAsync(
+  { user_id: savedUser.user_id, email: savedUser.email, role: savedUser.role },
+  { secret: this.config.get('JWT_ACCESS_SECRET'), expiresIn: '15m' },
+);
+return {
+  status: 'new',
+  message: 'Google login successful. Please complete profile.',
+  temp_token: tempToken,
+  user: {
+    user_id: savedUser.user_id,
+    email: savedUser.email,
+    role: savedUser.role,
+  },
+};
+
+  // const jwtTokens = await this.generateTokens(savedUser.user_id, savedUser.email, savedUser.role);
+  // await this.updateRefreshToken(savedUser.user_id, jwtTokens.refresh_token);
+
+  // return {
+  //   ...jwtTokens,
+  //   user: {
+  //     user_id: savedUser.user_id,
+  //     email: savedUser.email,
+  //     role: savedUser.role,
+  //   },
+  // };
+}
+
+// auth.service.ts
+async completeGoogleSignup(
+  dto: SignupDto,
+  userPayload: { user_id: number; email: string; role: UserRole },
+) {
+  const user = await this.userRepo.findOne({
+    where: { user_id: userPayload.user_id },
+    relations: ['doctor', 'patient'],
+  });
+
+  if (!user) throw new BadRequestException('User not found');
+
+  if (user.role === UserRole.DOCTOR) {
+    if (user.doctor) {
+      throw new BadRequestException('Doctor profile already exists');
+    }
+
+    const doctor = this.doctorRepo.create({
+      user,
+      first_name: (dto as SignupDto).first_name,
+      last_name: (dto as SignupDto).last_name,
+      specialization: (dto as SignupDto).specialization,
+      experience_years: (dto as SignupDto).experience_years,
+      phone_number: (dto as SignupDto).phone_number,
+      education: (dto as SignupDto).education,
+      clinic_name: (dto as SignupDto).clinic_name,
+      clinic_address: (dto as SignupDto).clinic_address,
+      available_days: (dto as SignupDto).available_days,
+      available_time_slots: (dto as SignupDto).available_time_slots,
+    });
+
+    await this.doctorRepo.save(doctor);
+    return { message: 'Doctor profile completed successfully' };
+  }
+
+  if (user.role === UserRole.PATIENT) {
+    if (user.patient) {
+      throw new BadRequestException('Patient profile already exists');
+    }
+
+    const patient = this.patientRepo.create({
+      user,
+      first_name: (dto as SignupDto).first_name,
+      last_name: (dto as SignupDto).last_name,
+      phone_number: (dto as SignupDto).phone_number,
+      gender: (dto as SignupDto).gender,
+      dob: (dto as SignupDto).dob,
+      address: (dto as SignupDto).address,
+      emergency_contact: (dto as SignupDto).emergency_contact,
+      medical_history: (dto as SignupDto).medical_history,
+    });
+
+    await this.patientRepo.save(patient);
+    return { message: 'Patient profile completed successfully' };
+  }
+
+  throw new BadRequestException('Invalid user role');
+}
 
 async signup(dto: SignupDto) {
   const existing = await this.userRepo.findOne({ where: { email: dto.email } });
@@ -109,8 +275,14 @@ async signup(dto: SignupDto) {
       where: { email: dto.email },
       relations: ['doctor', 'patient'],
     });
+    
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
+    // 🛡️ Block OAuth users from using local signin
+  if (user.provider !== 'local' || !user.password) {
+    throw new UnauthorizedException('Please login using Google OAuth.');
+  }
+
 
     const passwordMatches = await bcrypt.compare(dto.password, user.password);
     if (!passwordMatches) throw new UnauthorizedException('Invalid credentials');
@@ -152,8 +324,6 @@ async signup(dto: SignupDto) {
     // Optional: save hashed refresh token in DB if using token rotation
     
     await this.updateRefreshToken(user.user_id, tokens.refresh_token);
-    
-
     return {
     ...tokens,
     user: userInfo
@@ -168,10 +338,7 @@ async signup(dto: SignupDto) {
   return { message: 'Sign-out successful' };
   }
 
-  
 
-
-// 
 
 
 // 
