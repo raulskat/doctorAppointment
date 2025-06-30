@@ -10,6 +10,9 @@ import { DoctorTimeSlot } from './entities/doctor-timeslot.entity';
 import { CreateAvailabilityDto } from './dto/create-availability.dto';
 import { Doctor } from 'src/doctors/entities/doctor.entity';
 import * as dayjs from 'dayjs';
+import * as isSameOrBeforePlugin from 'dayjs/plugin/isSameOrBefore';
+dayjs.extend((isSameOrBeforePlugin as any).default || isSameOrBeforePlugin);
+
 
 @Injectable()
 export class AvailabilitiesService {
@@ -33,13 +36,28 @@ export class AvailabilitiesService {
       throw new BadRequestException('Date cannot be in the past');
     }
 
-    // 2. Check if availability already exists for same date+session
-    const exists = await this.availabilityRepo.findOne({
-      where: { user_id: user_id, date, session },
-    });
-    if (exists) throw new BadRequestException('Availability already exists for this session');
+    // ✅ 2. Check if end_time is after start_time
+  if (dayjs(`${date}T${end_time}`).isSameOrBefore(dayjs(`${date}T${start_time}`))) {
+    throw new BadRequestException('End time must be after start time');
+  }
 
-    // 3. Save availability
+  // 3. Check for overlapping availability time ranges
+  const overlapping = await this.availabilityRepo
+    .createQueryBuilder('availability')
+    .where('availability.user_id = :user_id', { user_id })
+    .andWhere('availability.date = :date', { date })
+    .andWhere('availability.session = :session', { session })
+    .andWhere('(:start_time < availability.end_time AND :end_time > availability.start_time)', {
+      start_time,
+      end_time,
+    })
+    .getOne();
+
+  if (overlapping) {
+    throw new BadRequestException('Availability overlaps with an existing one in this session');
+  }
+
+    // 4. Save availability
     const availability = this.availabilityRepo.create({
       user_id,
       date,
@@ -49,7 +67,7 @@ export class AvailabilitiesService {
     });
     const savedAvailability = await this.availabilityRepo.save(availability);
 
-    // 4. Generate slots (default 30 min)
+    // 5. Generate slots (default 30 min)
     const slotDuration = 30;
     const slots = this.generateSlots(
       date,
