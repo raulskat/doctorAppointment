@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddAvailability1751372921458 implements MigrationInterface {
-    name = 'AddAvailability1751372921458'
+export class AddAvailability1751374033573 implements MigrationInterface {
+    name = 'AddAvailability1751374033573'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`CREATE TABLE "doctor_time_slot" ("id" SERIAL NOT NULL, "availability_id" integer NOT NULL, "user_id" integer NOT NULL, "date" date NOT NULL, "start_time" TIME NOT NULL, "end_time" TIME NOT NULL, "is_available" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_ade5a566b70f84fa28dc289c12a" PRIMARY KEY ("id"))`);
@@ -16,9 +16,31 @@ export class AddAvailability1751372921458 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "doctor_availability" ADD CONSTRAINT "FK_98e72d0e8e02c8bf9126f71ff11" FOREIGN KEY ("user_id") REFERENCES "doctor"("user_id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "doctor" ADD CONSTRAINT "FK_a685e79dc974f768c39e5d12281" FOREIGN KEY ("user_id") REFERENCES "user"("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "patient" ADD CONSTRAINT "FK_f20f0bf6b734938c710e12c2782" FOREIGN KEY ("user_id") REFERENCES "user"("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+
+await queryRunner.query(`
+  CREATE INDEX IF NOT EXISTS doctor_first_name_trgm_idx
+  ON doctor USING gin (first_name gin_trgm_ops)
+`);
+
+await queryRunner.query(`
+  CREATE INDEX IF NOT EXISTS doctor_last_name_trgm_idx
+  ON doctor USING gin (last_name gin_trgm_ops)
+`);
+
+await queryRunner.query(`
+  CREATE INDEX IF NOT EXISTS doctor_specialization_trgm_idx
+  ON doctor USING gin (specialization gin_trgm_ops)
+`);
+
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`DROP INDEX IF EXISTS doctor_specialization_trgm_idx`);
+await queryRunner.query(`DROP INDEX IF EXISTS doctor_last_name_trgm_idx`);
+await queryRunner.query(`DROP INDEX IF EXISTS doctor_first_name_trgm_idx`);
+await queryRunner.query(`DROP EXTENSION IF EXISTS pg_trgm`);
+
         await queryRunner.query(`ALTER TABLE "patient" DROP CONSTRAINT "FK_f20f0bf6b734938c710e12c2782"`);
         await queryRunner.query(`ALTER TABLE "doctor" DROP CONSTRAINT "FK_a685e79dc974f768c39e5d12281"`);
         await queryRunner.query(`ALTER TABLE "doctor_availability" DROP CONSTRAINT "FK_98e72d0e8e02c8bf9126f71ff11"`);
