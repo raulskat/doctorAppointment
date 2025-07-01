@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
 import { AuthModule } from './auth/auth.module';
+import { AvailabilitiesModule } from './availabilities/availabilities.module';
 
 @Module({
   imports: [
@@ -19,7 +20,8 @@ import { AuthModule } from './auth/auth.module';
             UsersModule,
             DoctorsModule,
             PatientsModule,
-            AuthModule],
+            AuthModule,
+            AvailabilitiesModule],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
+import { DoctorAvailability } from 'src/availabilities/entities/doctor-availability.entity';
 
 
 @Entity()
@@ -55,6 +56,9 @@ export class Doctor {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  @OneToMany(() => DoctorAvailability, availability => availability.doctor)
+  availabilities: DoctorAvailability[];
 
   
 }
