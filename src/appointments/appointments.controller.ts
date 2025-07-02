@@ -5,6 +5,7 @@ import {
   Req,
   Body,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
@@ -23,5 +24,17 @@ export class AppointmentsController {
   async bookAppointment(@Req() req, @Body() dto: BookAppointmentDto) {
     const patientId = req.user.sub;
     return this.appointmentService.bookAppointment(dto, patientId);
+  }
+
+   @Get('view')
+  @Role(UserRole.PATIENT)
+  async getPatientAppointments(@Req() req) {
+    return this.appointmentService.getPatientAppointments(req.user.sub);
+  }
+
+  @Get('view')
+  @Role(UserRole.DOCTOR)
+  async getDoctorAppointments(@Req() req) {
+    return this.appointmentService.getDoctorAppointments(req.user.sub);
   }
 }

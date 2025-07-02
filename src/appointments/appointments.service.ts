@@ -47,6 +47,27 @@ export class AppointmentsService {
   },
 });
 
+    const hour = new Date(start_time).getHours();
+const session = hour < 12 ? 'MORNING' : 'EVENING';
+
+const sameSessionBooking = await this.appointmentRepo
+  .createQueryBuilder('appointment')
+  .innerJoin(DoctorTimeSlot, 'slot', 'appointment.slot_id = slot.id')
+  .where('appointment.patient_user_id = :patientId', { patientId: patientUserId })
+  .andWhere('appointment.doctor_user_id = :doctorId', { doctorId: doctor_id })
+  .andWhere('slot.date = :date', { date })
+  .andWhere('EXTRACT(HOUR FROM slot.start_time) < 12 = :isMorning', {
+    isMorning: session === 'MORNING',
+  })
+  .getOne();
+
+if (sameSessionBooking) {
+  throw new ConflictException(
+    'You have already booked a slot in this session with this doctor.',
+  );
+}
+
+
     if (existing) {
       throw new ConflictException('You have already booked this slot');
     }
@@ -99,6 +120,30 @@ export class AppointmentsService {
     reporting_time,
     scheduled_on,
   };
+}
+
+async getPatientAppointments(patientId: number) {
+  return this.appointmentRepo.find({
+    where: {
+      patient_user_id: patientId,
+    },
+    relations: ['slot'],
+    order: {
+      id: 'DESC',
+    },
+  });
+}
+
+async getDoctorAppointments(doctorId: number) {
+  return this.appointmentRepo.find({
+    where: {
+      doctor_user_id: doctorId,
+    },
+    relations: ['slot'],
+    order: {
+      id: 'DESC',
+    },
+  });
 }
 
 }
