@@ -26,13 +26,13 @@ export class AppointmentsController {
     return this.appointmentService.bookAppointment(dto, patientId);
   }
 
-   @Get('view')
+   @Get('view/patient')
   @Role(UserRole.PATIENT)
   async getPatientAppointments(@Req() req) {
     return this.appointmentService.getPatientAppointments(req.user.sub);
   }
 
-  @Get('view')
+  @Get('view/doctor')
   @Role(UserRole.DOCTOR)
   async getDoctorAppointments(@Req() req) {
     return this.appointmentService.getDoctorAppointments(req.user.sub);
