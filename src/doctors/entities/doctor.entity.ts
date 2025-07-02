@@ -21,6 +21,10 @@ export class Doctor {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @Column({ type: 'enum', enum: ['stream', 'wave'], default: 'stream' })
+  schedule_Type: 'stream' | 'wave';
+
+
   @Column()
   first_name: string;
 

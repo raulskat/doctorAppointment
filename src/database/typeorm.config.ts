@@ -15,7 +15,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   migrations: ['dist/migrations/*.js'],
   logging: true,
   logger: 'advanced-console',
-  ssl: {
-    rejectUnauthorized: false, // Render requires SSL, but allows self-signed certs
-  },
+  // ssl: {
+  //   rejectUnauthorized: false, // Render requires SSL, but allows self-signed certs
+  // },
 };
