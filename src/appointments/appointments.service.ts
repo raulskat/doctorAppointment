@@ -47,30 +47,35 @@ export class AppointmentsService {
   },
 });
 
+    
+
+
+    if (existing) {
+      throw new ConflictException('You have already booked this slot');
+    }
     const hour = new Date(start_time).getHours();
 const session = hour < 12 ? 'MORNING' : 'EVENING';
 
-const sameSessionBooking = await this.appointmentRepo
+const query = this.appointmentRepo
   .createQueryBuilder('appointment')
   .innerJoin(DoctorTimeSlot, 'slot', 'appointment.slot_id = slot.id')
   .where('appointment.patient_user_id = :patientId', { patientId: patientUserId })
   .andWhere('appointment.doctor_user_id = :doctorId', { doctorId: doctor_id })
-  .andWhere('slot.date = :date', { date })
-  .andWhere('EXTRACT(HOUR FROM slot.start_time) < 12 = :isMorning', {
-    isMorning: session === 'MORNING',
-  })
-  .getOne();
+  .andWhere('slot.date = :date', { date });
+
+if (session === 'MORNING') {
+  query.andWhere('EXTRACT(HOUR FROM slot.start_time) < 12');
+} else {
+  query.andWhere('EXTRACT(HOUR FROM slot.start_time) >= 12');
+}
+
+const sameSessionBooking = await query.getOne();
 
 if (sameSessionBooking) {
   throw new ConflictException(
     'You have already booked a slot in this session with this doctor.',
   );
 }
-
-
-    if (existing) {
-      throw new ConflictException('You have already booked this slot');
-    }
 
   if (doctor.schedule_Type === 'stream') {
     if (!slot.is_available) throw new ConflictException('Slot already booked');
