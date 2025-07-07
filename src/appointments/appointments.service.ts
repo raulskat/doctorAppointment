@@ -151,4 +151,28 @@ async getDoctorAppointments(doctorId: number) {
   });
 }
 
+async getPatientAppointments(patientId: number) {
+  return this.appointmentRepo.find({
+    where: {
+      patient_user_id: patientId,
+    },
+    relations: ['slot'],
+    order: {
+      id: 'DESC',
+    },
+  });
+}
+
+async getDoctorAppointments(doctorId: number) {
+  return this.appointmentRepo.find({
+    where: {
+      doctor_user_id: doctorId,
+    },
+    relations: ['slot'],
+    order: {
+      id: 'DESC',
+    },
+  });
+}
+
 }
