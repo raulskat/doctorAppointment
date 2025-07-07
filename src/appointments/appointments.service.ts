@@ -87,10 +87,10 @@ if (sameSessionBooking) {
   });
   
   let reporting_time: Date;
+  const patients_per_slot = slot.patients_per_slot ?? (doctor.schedule_Type === 'wave' ? 3 : 1);
   
   if (doctor.schedule_Type === 'wave') {
     const slot_duration = slot.slot_duration ?? 30;
-    const patients_per_slot = slot.patients_per_slot ?? 3;
     
   
   if (!slot_duration || !patients_per_slot) {
@@ -114,7 +114,7 @@ if (sameSessionBooking) {
 
   // Update slot
   slot.booked_count += 1;
-  if (slot.booked_count >= slot.patients_per_slot) {
+  if (slot.booked_count >= patients_per_slot) {
     slot.is_available = false;
   }
 
@@ -135,6 +135,7 @@ if (sameSessionBooking) {
 
   const saved = await this.appointmentRepo.save(appointment);
 
+  
   return {
     id: saved.id,
     doctor_user_id: saved.doctor_user_id,
