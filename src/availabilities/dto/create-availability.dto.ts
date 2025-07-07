@@ -1,4 +1,12 @@
-import { IsDateString, IsEnum, IsString, IsMilitaryTime } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsString,
+  IsMilitaryTime,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class CreateAvailabilityDto {
   @IsDateString()
@@ -13,5 +21,13 @@ export class CreateAvailabilityDto {
   @IsMilitaryTime()
   end_time: string;
 
-  // optional buffer between slots or slot duration could be added here
+  @IsInt()
+  @Min(5)
+  @Max(60)
+  slot_duration: number; // e.g., 10, 15, 20, 30 (in minutes)
+
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  patients_per_slot: number; // e.g., 1 to 10 patients per slot
 }
