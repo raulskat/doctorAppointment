@@ -119,7 +119,6 @@ export class AvailabilitiesService {
     const [slots, total] = await this.slotRepo.findAndCount({
       where: {
         user_id,
-        is_available: true,
         date: MoreThanOrEqual(dayjs().format('YYYY-MM-DD')),
       },
       order: { date: 'ASC', start_time: 'ASC' },
