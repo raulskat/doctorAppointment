@@ -56,6 +56,7 @@ export class AvailabilitiesService {
   if (overlapping) {
     throw new BadRequestException('Availability overlaps with an existing one in this session');
   }
+  
 
     // 4. Save availability
     const availability = this.availabilityRepo.create({
@@ -67,13 +68,19 @@ export class AvailabilitiesService {
     });
     const savedAvailability = await this.availabilityRepo.save(availability);
 
-    // 5. Generate slots (default 30 min)
-    const slotDuration = 30;
+    // 5. Generate slots 
+    const { slot_duration=30, patients_per_slot =1} = dto;
+
+    if (slot_duration % patients_per_slot !== 0) {
+  throw new BadRequestException('Slot duration must be divisible by number of patients per slot');
+}
+
     const slots = this.generateSlots(
       date,
       start_time,
       end_time,
-      slotDuration,
+      slot_duration,
+      patients_per_slot,
       savedAvailability.id,
       user_id,
     );
@@ -81,12 +88,14 @@ export class AvailabilitiesService {
     await this.slotRepo.save(slots);
     return { message: 'Availability and slots created', slots };
   }
+  
 
   private generateSlots(
     date: string,
     startTime: string,
     endTime: string,
     durationMinutes: number,
+    patientsPerSlot: number,
     availabilityId: number,
     user_id: number,
   ): DoctorTimeSlot[] {
@@ -106,6 +115,9 @@ export class AvailabilitiesService {
           start_time: current.format('HH:mm'),
           end_time: next.format('HH:mm'),
           is_available: true,
+          slot_duration: durationMinutes,
+          patients_per_slot: patientsPerSlot,
+          booked_count: 0,
         }),
       );
     }
