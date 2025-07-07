@@ -22,4 +22,11 @@ export class Appointment {
 
   @CreateDateColumn()
   created_at: Date;
+
+  @Column({ type: 'timestamp',nullable:true })
+  reporting_time: Date;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  scheduled_on: Date;
+
 }

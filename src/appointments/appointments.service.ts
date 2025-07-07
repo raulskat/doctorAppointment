@@ -10,6 +10,7 @@ import { Appointment } from './entities/appointment.entity';
 import { Doctor } from 'src/doctors/entities/doctor.entity';
 import { DoctorTimeSlot } from 'src/availabilities/entities/doctor-timeslot.entity';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class AppointmentsService {
@@ -65,13 +66,39 @@ export class AppointmentsService {
 
   await this.slotRepo.save(slot);
 
+   // ✅ Calculate scheduled_on
+  const scheduled_on = new Date();
+
+  // ✅ Calculate reporting_time
+  let reporting_time: Date;
+  if (doctor.schedule_Type === 'stream') {
+    reporting_time = dayjs(`${slot.date} ${slot.start_time}`).toDate();
+  } else {
+    const alreadyBooked = await this.appointmentRepo.count({ where: { slot_id: slot.id } });
+    const slotDuration = 10; // minutes (can be made configurable)
+    reporting_time = dayjs(`${slot.date} ${slot.start_time}`)
+      .add(slotDuration * alreadyBooked, 'minute')
+      .toDate();
+  }
+
   const appointment = this.appointmentRepo.create({
     doctor_user_id: doctor_id,
     patient_user_id: patientUserId,
     slot_id: slot.id,
+    reporting_time,
+    scheduled_on,
   });
 
-  return this.appointmentRepo.save(appointment);
+  const saved = await this.appointmentRepo.save(appointment);
+
+  return {
+    id: saved.id,
+    doctor_user_id: saved.doctor_user_id,
+    patient_user_id: saved.patient_user_id,
+    slot_id: saved.slot_id,
+    reporting_time,
+    scheduled_on,
+  };
 }
 
 }
