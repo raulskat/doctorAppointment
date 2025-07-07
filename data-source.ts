@@ -17,4 +17,7 @@ export const AppDataSource = new DataSource({
   migrations: [isProd ? 'dist/migrations/*.js' : 'src/migrations/*.ts'],
   synchronize: false,
   logging: true,
+  // ssl: {
+  //   rejectUnauthorized: false, // 🛡️ Required by Render
+  // },
 });

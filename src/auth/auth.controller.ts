@@ -106,22 +106,26 @@ async completeGoogleSignup(
   }
 
   @Post('refresh')
-  async refreshToken(@Req() req: Request, @Res() res: Response) {
+async refreshToken(
+  @Req() req: Request,
+  @Res({ passthrough: true }) res: Response
+) {
   const refreshToken = req.cookies['refresh_token'];
   if (!refreshToken) throw new ForbiddenException('No refresh token');
 
-  return this.authService.refreshTokens(refreshToken).then((data) => {
-    res.cookie('refresh_token', data.refresh_token, {
-      httpOnly: true,
-      secure: false, // Set to true in production
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+  const data = await this.authService.refreshTokens(refreshToken);
 
-    return { access_token:data.access_token, user:data.user };
+  res.cookie('refresh_token', data.refresh_token, {
+    httpOnly: true,
+    secure: false, // ✅ Set to true in production!
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
+
+  return { access_token: data.access_token, user: data.user };
 }
+
 
   @Post('signout')
 async signout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
