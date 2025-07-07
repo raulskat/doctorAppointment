@@ -39,6 +39,12 @@ export class AppointmentsService {
   });
   if (!slot) throw new NotFoundException('Slot not found');
 
+  const slotStartDateTime = dayjs(`${slot.date} ${slot.start_time}`);
+
+    if (!slotStartDateTime.isValid() || slotStartDateTime.isBefore(dayjs())) {
+      throw new ConflictException('Invalid or past slot start time');
+    }
+
   const existing = await this.appointmentRepo.findOne({
   where: {
     doctor_user_id: doctor_id,
@@ -47,21 +53,19 @@ export class AppointmentsService {
   },
 });
 
-    
-
-
     if (existing) {
       throw new ConflictException('You have already booked this slot');
     }
-    const hour = new Date(start_time).getHours();
-const session = hour < 12 ? 'MORNING' : 'EVENING';
+
+    const hour = slotStartDateTime.hour();
+    const session = hour < 12 ? 'MORNING' : 'EVENING';
 
 const query = this.appointmentRepo
   .createQueryBuilder('appointment')
   .innerJoin(DoctorTimeSlot, 'slot', 'appointment.slot_id = slot.id')
   .where('appointment.patient_user_id = :patientId', { patientId: patientUserId })
   .andWhere('appointment.doctor_user_id = :doctorId', { doctorId: doctor_id })
-  .andWhere('slot.date = :date', { date });
+  .andWhere('slot.date = :date', { date: slot.date });
 
 if (session === 'MORNING') {
   query.andWhere('EXTRACT(HOUR FROM slot.start_time) < 12');
@@ -124,32 +128,11 @@ if (sameSessionBooking) {
     slot_id: saved.slot_id,
     reporting_time,
     scheduled_on,
+    slot_date: slot.date,
+    slot_start_time: slot.start_time,
   };
 }
 
-async getPatientAppointments(patientId: number) {
-  return this.appointmentRepo.find({
-    where: {
-      patient_user_id: patientId,
-    },
-    relations: ['slot'],
-    order: {
-      id: 'DESC',
-    },
-  });
-}
-
-async getDoctorAppointments(doctorId: number) {
-  return this.appointmentRepo.find({
-    where: {
-      doctor_user_id: doctorId,
-    },
-    relations: ['slot'],
-    order: {
-      id: 'DESC',
-    },
-  });
-}
 
 async getPatientAppointments(patientId: number) {
   return this.appointmentRepo.find({
