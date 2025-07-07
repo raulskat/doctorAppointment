@@ -81,17 +81,41 @@ if (sameSessionBooking) {
   );
 }
 
-  if (doctor.schedule_Type === 'stream') {
-    if (!slot.is_available) throw new ConflictException('Slot already booked');
-    slot.is_available = false;
+  const existingAppointments = await this.appointmentRepo.find({
+    where: { slot_id: slot.id },
+    order: { created_at: 'ASC' },
+  });
+  
+  let reporting_time: Date;
+  
+  if (doctor.schedule_Type === 'wave') {
+    const slot_duration = slot.slot_duration ?? 30;
+    const patients_per_slot = slot.patients_per_slot ?? 3;
+    
+  
+  if (!slot_duration || !patients_per_slot) {
+    throw new ConflictException('Invalid slot configuration');
+  }
+  
+    const perPatientOffset = Math.floor(slot_duration / patients_per_slot);
+    const nextIndex = existingAppointments.length;
+  
+  if (nextIndex >= patients_per_slot) {
+    throw new ConflictException('Slot fully booked');
+  }
+  
+  reporting_time = dayjs(`${slot.date} ${slot.start_time}`)
+    .add(perPatientOffset * nextIndex, 'minute')
+    .toDate();
   } else {
-    if (slot.booked_count >= slot.max_bookings) {
-      throw new ConflictException('Slot fully booked');
-    }
-    slot.booked_count += 1;
-    if (slot.booked_count >= slot.max_bookings) {
-      slot.is_available = false;
-    }
+    reporting_time = dayjs(`${slot.date} ${slot.start_time}`).toDate();
+  }
+  
+
+  // Update slot
+  slot.booked_count += 1;
+  if (slot.booked_count >= slot.patients_per_slot) {
+    slot.is_available = false;
   }
 
   await this.slotRepo.save(slot);
@@ -99,17 +123,7 @@ if (sameSessionBooking) {
    // ✅ Calculate scheduled_on
   const scheduled_on = new Date();
 
-  // ✅ Calculate reporting_time
-  let reporting_time: Date;
-  if (doctor.schedule_Type === 'stream') {
-    reporting_time = dayjs(`${slot.date} ${slot.start_time}`).toDate();
-  } else {
-    const alreadyBooked = await this.appointmentRepo.count({ where: { slot_id: slot.id } });
-    const slotDuration = 10; // minutes (can be made configurable)
-    reporting_time = dayjs(`${slot.date} ${slot.start_time}`)
-      .add(slotDuration * alreadyBooked, 'minute')
-      .toDate();
-  }
+  
 
   const appointment = this.appointmentRepo.create({
     doctor_user_id: doctor_id,

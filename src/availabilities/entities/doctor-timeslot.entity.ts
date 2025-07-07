@@ -26,8 +26,12 @@ export class DoctorTimeSlot {
   @Column({ default: 0 })
   booked_count: number;
 
-  @Column({ default: 3 }) // Can be configured later per doctor or per slot
-  max_bookings: number;
+  @Column({ type: 'int', nullable: true })
+  patients_per_slot: number; // For wave scheduling
+  
+  @Column({ type: 'int', nullable: false })
+  slot_duration: number; // In minutes (used for both stream & wave)
+  
 
 
   @Column()
