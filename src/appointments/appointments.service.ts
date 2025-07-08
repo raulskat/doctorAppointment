@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,6 +12,7 @@ import { Doctor } from 'src/doctors/entities/doctor.entity';
 import { DoctorTimeSlot } from 'src/availabilities/entities/doctor-timeslot.entity';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
 import * as dayjs from 'dayjs';
+import { DoctorAvailability } from 'src/availabilities/entities/doctor-availability.entity';
 
 @Injectable()
 export class AppointmentsService {
@@ -21,6 +23,8 @@ export class AppointmentsService {
     private readonly doctorRepo: Repository<Doctor>,
     @InjectRepository(DoctorTimeSlot)
     private readonly slotRepo: Repository<DoctorTimeSlot>,
+    @InjectRepository(DoctorAvailability)
+    private readonly availabilityRepo: Repository<DoctorAvailability>,
   ) {}
 
   async bookAppointment(dto: BookAppointmentDto, patientUserId: number) {
@@ -40,6 +44,15 @@ export class AppointmentsService {
   if (!slot) throw new NotFoundException('Slot not found');
 
   const slotStartDateTime = dayjs(`${slot.date} ${slot.start_time}`);
+  const now = dayjs();
+
+  if (slot.booking_start_time && now.isBefore(dayjs(`${slot.date} ${slot.booking_start_time}`))) {
+    throw new ForbiddenException('Booking not yet allowed for this slot');
+  }
+
+  if (slot.booking_end_time && now.isAfter(dayjs(`${slot.date} ${slot.booking_end_time}`))) {
+    throw new ForbiddenException('Booking time for this slot has passed');
+  }
 
     if (!slotStartDateTime.isValid() || slotStartDateTime.isBefore(dayjs())) {
       throw new ConflictException('Invalid or past slot start time');

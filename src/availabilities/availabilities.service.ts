@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +12,8 @@ import { CreateAvailabilityDto } from './dto/create-availability.dto';
 import { Doctor } from 'src/doctors/entities/doctor.entity';
 import * as dayjs from 'dayjs';
 import * as isSameOrBeforePlugin from 'dayjs/plugin/isSameOrBefore';
+import { Appointment } from 'src/appointments/entities/appointment.entity';
+import { UpdateSlotDto } from './dto/update-slot.dto';
 dayjs.extend((isSameOrBeforePlugin as any).default || isSameOrBeforePlugin);
 
 
@@ -23,6 +26,8 @@ export class AvailabilitiesService {
     private slotRepo: Repository<DoctorTimeSlot>,
     @InjectRepository(Doctor)
     private doctorRepo: Repository<Doctor>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepo: Repository<Appointment>,
   ) {}
 
   async createAvailability(user_id: number, dto: CreateAvailabilityDto) {
@@ -118,6 +123,8 @@ export class AvailabilitiesService {
           slot_duration: durationMinutes,
           patients_per_slot: patientsPerSlot,
           booked_count: 0,
+          booking_start_time: current.format('HH:mm'), // or use dto.booking_start_time if passed separately
+          booking_end_time: next.format('HH:mm'), 
         }),
       );
     }
@@ -145,4 +152,75 @@ export class AvailabilitiesService {
       results: slots,
     };
   }
+
+  async deleteSlot(slotId: number, userId: number) {
+    const slot = await this.slotRepo.findOne({
+      where: { id: slotId, user_id: userId },
+      relations: ['availability'],
+    });
+    if (!slot) throw new NotFoundException('Slot not found');
+
+    const { date, session, start_time, end_time } = slot.availability;
+
+    const existingAppointments = await this.appointmentRepo
+      .createQueryBuilder('appointment')
+      .innerJoin(DoctorTimeSlot, 'slot', 'appointment.slot_id = slot.id')
+      .where('slot.user_id = :userId', { userId })
+      .andWhere('slot.date = :date', { date })
+      .andWhere('slot.start_time >= :start', { start: start_time })
+      .andWhere('slot.end_time <= :end', { end: end_time })
+      .getCount();
+
+    if (existingAppointments > 0) {
+      throw new ConflictException(
+        'You cannot modify this slot because an appointment is already booked in this session.',
+      );
+    }
+
+    await this.slotRepo.remove(slot);
+    return { message: 'Slot deleted successfully' };
+  }
+
+
+  async editSlot(slotId: number, userId: number, dto: UpdateSlotDto) {
+    const slot = await this.slotRepo.findOne({
+      where: { id: slotId, user_id: userId },
+      relations: ['availability'],
+    });
+    if (!slot) throw new NotFoundException('Slot not found');
+
+    const { date, session, start_time, end_time } = slot.availability;
+
+    const existingAppointments = await this.appointmentRepo
+      .createQueryBuilder('appointment')
+      .innerJoin(DoctorTimeSlot, 'slot', 'appointment.slot_id = slot.id')
+      .where('slot.user_id = :userId', { userId })
+      .andWhere('slot.date = :date', { date })
+      .andWhere('slot.start_time >= :start', { start: start_time })
+      .andWhere('slot.end_time <= :end', { end: end_time })
+      .getCount();
+
+    if (existingAppointments > 0) {
+      throw new ConflictException(
+        'You cannot modify this slot because an appointment is already booked in this session.',
+      );
+    }
+
+    if (dto.start_time && dto.end_time) {
+      const start = dayjs(`${slot.date} ${dto.start_time}`);
+      const end = dayjs(`${slot.date} ${dto.end_time}`);
+
+      if (!start.isValid() || !end.isValid() || end.isBefore(start)) {
+        throw new BadRequestException('Invalid start_time or end_time');
+      }
+    
+      dto.slot_duration = end.diff(start, 'minute');
+    }
+    Object.assign(slot, dto);
+
+    const updated = await this.slotRepo.save(slot);
+    return { message: 'Slot updated successfully', slot: updated };
+  }
+
+
 }

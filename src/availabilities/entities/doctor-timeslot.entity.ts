@@ -54,4 +54,10 @@ export class DoctorTimeSlot {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  @Column({ type: 'time', nullable: true })
+  booking_start_time: string;
+  
+  @Column({ type: 'time', nullable: true })
+  booking_end_time: string;
 }

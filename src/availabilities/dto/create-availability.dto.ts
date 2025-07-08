@@ -6,6 +6,7 @@ import {
   IsInt,
   Min,
   Max,
+  IsOptional,
 } from 'class-validator';
 
 export class CreateAvailabilityDto {
@@ -30,4 +31,12 @@ export class CreateAvailabilityDto {
   @Min(1)
   @Max(10)
   patients_per_slot: number; // e.g., 1 to 10 patients per slot
+
+  @IsMilitaryTime()
+  @IsOptional()
+  booking_start_time?: string;
+
+  @IsMilitaryTime()
+  @IsOptional()
+  booking_end_time?: string;
 }
