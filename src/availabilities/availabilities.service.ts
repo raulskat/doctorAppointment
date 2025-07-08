@@ -237,7 +237,7 @@ export class AvailabilitiesService {
   async updateAvailability(userId: number, availabilityId: number, dto: Partial<DoctorAvailability>) {
   const availability = await this.availabilityRepo.findOne({
     where: { id: availabilityId, user_id: userId },
-    relations: ['slots'],
+    relations: ['time_slots'],
   });
   if (!availability) throw new NotFoundException('Availability not found');
 
