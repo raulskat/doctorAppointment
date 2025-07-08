@@ -163,6 +163,7 @@ if (sameSessionBooking) {
 
 
 async getPatientAppointments(patientId: number) {
+  const now = new Date();
   return this.appointmentRepo.find({
     where: {
       patient_user_id: patientId,
@@ -171,10 +172,16 @@ async getPatientAppointments(patientId: number) {
     order: {
       id: 'DESC',
     },
-  });
+  }).then(appointments =>
+    appointments.filter(app =>
+      app.slot &&
+      app.slot.is_available &&
+      new Date(`${app.slot.date}T${app.slot.start_time}`) >= now
+    ));
 }
 
 async getDoctorAppointments(doctorId: number) {
+  const now = new Date();
   return this.appointmentRepo.find({
     where: {
       doctor_user_id: doctorId,
@@ -183,7 +190,13 @@ async getDoctorAppointments(doctorId: number) {
     order: {
       id: 'DESC',
     },
-  });
+  }).then(appointments =>
+    appointments.filter(app =>
+      app.slot &&
+      app.slot.is_available &&
+      new Date(`${app.slot.date}T${app.slot.start_time}`) >= now
+    )
+  );
 }
 
 }

@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual } from 'typeorm';
+import { Repository, MoreThanOrEqual, Not } from 'typeorm';
 import { DoctorAvailability } from './entities/doctor-availability.entity';
 import { DoctorTimeSlot } from './entities/doctor-timeslot.entity';
 import { CreateAvailabilityDto } from './dto/create-availability.dto';
@@ -138,6 +138,7 @@ export class AvailabilitiesService {
     const [slots, total] = await this.slotRepo.findAndCount({
       where: {
         user_id,
+        is_available: true,
         date: MoreThanOrEqual(dayjs().format('YYYY-MM-DD')),
       },
       order: { date: 'ASC', start_time: 'ASC' },
@@ -219,6 +220,17 @@ export class AvailabilitiesService {
     Object.assign(slot, dto);
 
     const updated = await this.slotRepo.save(slot);
+    if (dto.start_time) {
+    await this.slotRepo.update(
+      {
+        user_id: userId,
+        date: slot.date,
+        start_time: dto.start_time,
+        id: Not(slotId),
+      },
+      { is_available: false },
+    );
+  }
     return { message: 'Slot updated successfully', slot: updated };
   }
 
