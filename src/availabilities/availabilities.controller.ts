@@ -70,9 +70,25 @@ export class AvailabilitiesController {
     if (req.user.sub !== doctorId) {
       throw new ForbiddenException('Unauthorized');
     }
-  
+
     return this.availService.updateAvailability(doctorId, availabilityId, dto);
   }
+
+  @Delete(':availabilityId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Role(UserRole.DOCTOR)
+  async deleteAvailability(
+    @Param('id', ParseIntPipe) doctorId: number,
+    @Param('availabilityId', ParseIntPipe) availabilityId: number,
+    @Req() req,
+  ) {
+    if (req.user.sub !== doctorId) {
+      throw new ForbiddenException('Unauthorized');
+    }
+  
+    return this.availService.deleteAvailability(doctorId, availabilityId);
+  }
+
 
 
 }

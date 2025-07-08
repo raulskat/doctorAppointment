@@ -234,11 +234,12 @@ export class AvailabilitiesService {
     return { message: 'Slot updated successfully', slot: updated };
   }
 
-  async updateAvailability(userId: number, availabilityId: number, dto: Partial<DoctorAvailability>) {
+ async updateAvailability(userId: number, availabilityId: number, dto: Partial<DoctorAvailability>) {
   const availability = await this.availabilityRepo.findOne({
     where: { id: availabilityId, user_id: userId },
     relations: ['time_slots'],
   });
+
   if (!availability) throw new NotFoundException('Availability not found');
 
   // Step 1: Get all slots in this availability
@@ -264,15 +265,72 @@ export class AvailabilitiesService {
     }
   }
 
-  // Step 4: Update availability
+  // Step 4: Delete old slots (since no appointments exist)
+  await this.slotRepo.delete({ availability_id: availabilityId });
+
+  // Step 5: Update availability timings
   Object.assign(availability, dto);
   const updated = await this.availabilityRepo.save(availability);
 
+  // Step 6: Generate new slots
+  const slot_duration = (dto as any).slot_duration ?? 30;
+  const patients_per_slot = (dto as any).patients_per_slot ?? 1;
+
+  if (slot_duration % patients_per_slot !== 0) {
+    throw new BadRequestException('Slot duration must be divisible by number of patients per slot');
+  }
+
+  const newSlots = this.generateSlots(
+    updated.date,
+    updated.start_time,
+    updated.end_time,
+    slot_duration,
+    patients_per_slot,
+    updated.id,
+    userId,
+  );
+
+  await this.slotRepo.save(newSlots);
+
   return {
     message: 'Session updated successfully',
-    availability: updated,
+    availability: {
+      ...updated,
+      time_slots: newSlots,
+    },
   };
 }
+
+async deleteAvailability(userId: number, availabilityId: number) {
+  const availability = await this.availabilityRepo.findOne({
+    where: { id: availabilityId, user_id: userId },
+    relations: ['time_slots'],
+  });
+
+  if (!availability) {
+    throw new NotFoundException('Availability not found');
+  }
+
+  const slotIds = availability.time_slots.map(slot => slot.id);
+
+  const appointmentCount = await this.appointmentRepo
+    .createQueryBuilder('appointment')
+    .where('appointment.slot_id IN (:...slotIds)', { slotIds })
+    .getCount();
+
+  if (appointmentCount > 0) {
+    throw new ConflictException('Cannot delete session: Appointments already booked.');
+  }
+
+  await this.slotRepo.delete({ availability_id: availabilityId });
+  await this.availabilityRepo.delete({ id: availabilityId });
+
+  return {
+    message: 'Availability session deleted successfully',
+  };
+}
+
+
 
 
 
