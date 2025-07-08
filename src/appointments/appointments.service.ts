@@ -48,12 +48,19 @@ export class AppointmentsService {
   const slotStartDateTime = dayjs(`${slot.date} ${slot.start_time}`);
   const now = dayjs();
 
-  if (slot.booking_start_time && now.isBefore(dayjs(`${slot.date} ${slot.booking_start_time}`))) {
-    throw new ForbiddenException('Booking not yet allowed for this slot');
+  const today = dayjs().format('YYYY-MM-DD');
+  if (slot.booking_start_time) {
+    const bookingStart = dayjs(`${slot.date} ${slot.booking_start_time}`);
+    if (slot.date === today && now.isBefore(bookingStart)) {
+      throw new ForbiddenException('Booking not yet allowed for this slot');
+    }
   }
 
-  if (slot.booking_end_time && now.isAfter(dayjs(`${slot.date} ${slot.booking_end_time}`))) {
-    throw new ForbiddenException('Booking time for this slot has passed');
+  if (slot.booking_end_time) {
+    const bookingEnd = dayjs(`${slot.date} ${slot.booking_end_time}`);
+    if (slot.date === today && now.isAfter(bookingEnd)) {
+      throw new ForbiddenException('Booking time for this slot has passed');
+    }
   }
 
     if (!slotStartDateTime.isValid() || slotStartDateTime.isBefore(dayjs())) {
