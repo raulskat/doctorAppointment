@@ -6,15 +6,19 @@ import { AvailabilitiesService } from './availabilities.service';
 import { AvailabilitiesController } from './availabilities.controller';
 import { Doctor } from 'src/doctors/entities/doctor.entity';
 import { AuthModule } from 'src/auth/auth.module';
+import { Appointment } from 'src/appointments/entities/appointment.entity';
+import { AppointmentsModule } from 'src/appointments/appointments.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       DoctorAvailability,
       DoctorTimeSlot,
-      Doctor
+      Doctor,
+      Appointment,
     ]),
-    AuthModule
+    AuthModule,
+    AppointmentsModule,
   ],
   controllers: [AvailabilitiesController],
   providers: [AvailabilitiesService],

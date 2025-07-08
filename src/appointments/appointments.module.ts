@@ -14,5 +14,6 @@ import { AuthModule } from 'src/auth/auth.module';
   
   providers: [AppointmentsService],
   controllers: [AppointmentsController],
+  exports: [TypeOrmModule],
 })
 export class AppointmentsModule {}
