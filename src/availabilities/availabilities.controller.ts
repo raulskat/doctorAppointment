@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, Query, UseGuards, Req, ParseIntPipe, Delete, Patch } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Query, UseGuards, Req, ParseIntPipe, Delete, Patch, ForbiddenException } from '@nestjs/common';
 import { AvailabilitiesService } from './availabilities.service';
 import { CreateAvailabilityDto } from './dto/create-availability.dto';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
@@ -6,6 +6,7 @@ import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { Role } from 'src/auth/guard/role.decorator';
 import { UserRole } from 'src/users/entities/user.entity';
 import { UpdateSlotDto } from './dto/update-slot.dto';
+import { UpdateAvailabilityDto } from './dto/update-availability.dto';
 
 @Controller('doctors/:id/availability')
 export class AvailabilitiesController {
@@ -56,5 +57,22 @@ export class AvailabilitiesController {
   ) {
     return this.availService.editSlot(slotId, req.user.sub, dto);
   }
+
+  @Patch(':availabilityId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Role(UserRole.DOCTOR)
+  async updateAvailability(
+    @Param('id', ParseIntPipe) doctorId: number,
+    @Param('availabilityId', ParseIntPipe) availabilityId: number,
+    @Req() req,
+    @Body() dto: UpdateAvailabilityDto,
+  ) {
+    if (req.user.sub !== doctorId) {
+      throw new ForbiddenException('Unauthorized');
+    }
+  
+    return this.availService.updateAvailability(doctorId, availabilityId, dto);
+  }
+
 
 }

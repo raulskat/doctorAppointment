@@ -234,5 +234,46 @@ export class AvailabilitiesService {
     return { message: 'Slot updated successfully', slot: updated };
   }
 
+  async updateAvailability(userId: number, availabilityId: number, dto: Partial<DoctorAvailability>) {
+  const availability = await this.availabilityRepo.findOne({
+    where: { id: availabilityId, user_id: userId },
+    relations: ['slots'],
+  });
+  if (!availability) throw new NotFoundException('Availability not found');
+
+  // Step 1: Get all slots in this availability
+  const slots = await this.slotRepo.find({ where: { availability_id: availabilityId } });
+  const slotIds = slots.map(s => s.id);
+
+  // Step 2: Check if any appointments exist in those slots
+  const appointmentCount = await this.appointmentRepo
+    .createQueryBuilder('appointment')
+    .where('appointment.slot_id IN (:...slotIds)', { slotIds })
+    .getCount();
+
+  if (appointmentCount > 0) {
+    throw new ConflictException('Cannot edit session: Appointments already booked in this session.');
+  }
+
+  // Step 3: Validate new start_time < end_time
+  if (dto.start_time && dto.end_time) {
+    const start = dayjs(`${availability.date}T${dto.start_time}`);
+    const end = dayjs(`${availability.date}T${dto.end_time}`);
+    if (!start.isValid() || !end.isValid() || end.isBefore(start)) {
+      throw new BadRequestException('Invalid session start or end time');
+    }
+  }
+
+  // Step 4: Update availability
+  Object.assign(availability, dto);
+  const updated = await this.availabilityRepo.save(availability);
+
+  return {
+    message: 'Session updated successfully',
+    availability: updated,
+  };
+}
+
+
 
 }
