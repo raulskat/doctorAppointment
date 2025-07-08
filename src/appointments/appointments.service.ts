@@ -32,13 +32,15 @@ export class AppointmentsService {
 
   const doctor = await this.doctorRepo.findOne({ where: { user_id: doctor_id } });
   if (!doctor) throw new NotFoundException('Doctor not found');
+  const normalizedStart = dayjs(`${date} ${start_time}`, ['HH:mm', 'HH:mm:ss']).format('HH:mm:ss');
+  const normalizedEnd = dayjs(`${date} ${end_time}`, ['HH:mm', 'HH:mm:ss']).format('HH:mm:ss');
 
   const slot = await this.slotRepo.findOne({
     where: {
       user_id: doctor_id,
       date,
-      start_time,
-      end_time,
+      start_time: normalizedStart,
+      end_time: normalizedEnd,
     },
   });
   if (!slot) throw new NotFoundException('Slot not found');
