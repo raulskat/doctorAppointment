@@ -208,28 +208,35 @@ async getDoctorAppointments(doctorId: number) {
   );
 }
 
-async cancelAppointment(requesterId: number, appointmentId: number) {
+async cancelAppointment(userId: number, appointmentId: number) {
   const appointment = await this.appointmentRepo.findOne({
     where: { id: appointmentId },
     relations: ['slot'],
   });
 
-  if (!appointment) {
-    throw new NotFoundException('Appointment not found');
-  }
+  if (!appointment) throw new NotFoundException('Appointment not found');
 
-  const isDoctor = appointment.doctor_user_id === requesterId;
-  const isPatient = appointment.patient_user_id === requesterId;
+  const isDoctor = appointment.doctor_user_id === userId;
+  const isPatient = appointment.patient_user_id === userId;
 
   if (!isDoctor && !isPatient) {
     throw new ForbiddenException('You are not allowed to cancel this appointment');
   }
 
+  if (appointment.status === 'cancelled') {
+    throw new ConflictException('Appointment already cancelled');
+  }
+
   appointment.status = 'cancelled';
   await this.appointmentRepo.save(appointment);
 
-  return { message: 'Appointment cancelled successfully' };
+  return {
+    message: 'Appointment cancelled successfully',
+    appointment_id: appointment.id,
+    cancelled_by: isDoctor ? 'doctor' : 'patient',
+  };
 }
+
 
 async getFilteredPatientAppointments(patientId: number, type: 'upcoming' | 'past' | 'cancelled') {
   const today = dayjs().format('YYYY-MM-DD');
