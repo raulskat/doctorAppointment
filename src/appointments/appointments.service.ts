@@ -171,41 +171,31 @@ if (sameSessionBooking) {
 }
 
 
-async getPatientAppointments(patientId: number) {
-  const now = new Date();
-  return this.appointmentRepo.find({
-    where: {
-      patient_user_id: patientId,
-    },
-    relations: ['slot'],
-    order: {
-      id: 'DESC',
-    },
-  }).then(appointments =>
-    appointments.filter(app =>
-      app.slot &&
-      app.slot.is_available &&
-      new Date(`${app.slot.date}T${app.slot.start_time}`) >= now
-    ));
-}
+async getFilteredAppointmentsByRole(
+  userId: number,
+  role: 'doctor' | 'patient',
+  type: 'upcoming' | 'past' | 'cancelled'
+) {
+  const today = dayjs().format('YYYY-MM-DD');
 
-async getDoctorAppointments(doctorId: number) {
-  const now = new Date();
-  return this.appointmentRepo.find({
-    where: {
-      doctor_user_id: doctorId,
-    },
-    relations: ['slot'],
-    order: {
-      id: 'DESC',
-    },
-  }).then(appointments =>
-    appointments.filter(app =>
-      app.slot &&
-      app.slot.is_available &&
-      new Date(`${app.slot.date}T${app.slot.start_time}`) >= now
-    )
-  );
+  const qb = this.appointmentRepo
+    .createQueryBuilder('appointment')
+    .leftJoinAndSelect('appointment.slot', 'slot')
+    .where(`appointment.${role}_user_id = :userId`, { userId });
+
+  if (type === 'cancelled') {
+    qb.andWhere('appointment.status = :status', { status: 'cancelled' });
+  } else {
+    qb.andWhere('appointment.status = :status', { status: 'booked' });
+
+    if (type === 'upcoming') {
+      qb.andWhere('slot.date >= :today', { today });
+    } else if (type === 'past') {
+      qb.andWhere('slot.date < :today', { today });
+    }
+  }
+
+  return qb.orderBy('slot.date', 'DESC').getMany();
 }
 
 async cancelAppointment(userId: number, appointmentId: number) {
@@ -238,27 +228,9 @@ async cancelAppointment(userId: number, appointmentId: number) {
 }
 
 
-async getFilteredPatientAppointments(patientId: number, type: 'upcoming' | 'past' | 'cancelled') {
-  const today = dayjs().format('YYYY-MM-DD');
 
-  const qb = this.appointmentRepo
-    .createQueryBuilder('appointment')
-    .leftJoinAndSelect('appointment.slot', 'slot')
-    .where('appointment.patient_user_id = :patientId', { patientId });
 
-  if (type === 'cancelled') {
-    qb.andWhere('appointment.status = :status', { status: 'cancelled' });
-  } else {
-    qb.andWhere('appointment.status = :status', { status: 'booked' });
-    if (type === 'upcoming') {
-      qb.andWhere('slot.date >= :today', { today });
-    } else if (type === 'past') {
-      qb.andWhere('slot.date < :today', { today });
-    }
-  }
 
-  return qb.orderBy('slot.date', 'DESC').getMany();
-}
 
 
 }

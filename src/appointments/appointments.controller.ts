@@ -31,14 +31,20 @@ export class AppointmentsController {
 
   @Get('view/patient')
   @Role(UserRole.PATIENT)
-  async getPatientAppointments(@Req() req, @Query('type') type: 'upcoming' | 'past' | 'cancelled') {
-    return this.appointmentService.getFilteredPatientAppointments(req.user.sub, type);
+  async getPatientAppointments(
+    @Req() req,
+    @Query('type') type: 'upcoming' | 'past' | 'cancelled'
+  ) {
+    return this.appointmentService.getFilteredAppointmentsByRole(req.user.sub, 'patient', type);
   }
 
   @Get('view/doctor')
   @Role(UserRole.DOCTOR)
-  async getDoctorAppointments(@Req() req) {
-    return this.appointmentService.getDoctorAppointments(req.user.sub);
+  async getDoctorAppointments(
+    @Req() req,
+    @Query('type') type: 'upcoming' | 'past' | 'cancelled'
+  ) {
+    return this.appointmentService.getFilteredAppointmentsByRole(req.user.sub, 'doctor', type);
   }
   @Patch(':id/cancel')
   @UseGuards(JwtAuthGuard)
