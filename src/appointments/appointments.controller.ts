@@ -42,6 +42,7 @@ export class AppointmentsController {
   }
   @Patch(':id/cancel')
   @UseGuards(JwtAuthGuard)
+  @Role(UserRole.DOCTOR, UserRole.PATIENT)
   async cancelAppointment(@Req() req, @Param('id') id: number) {
     return this.appointmentService.cancelAppointment(req.user.sub, id);
   }
