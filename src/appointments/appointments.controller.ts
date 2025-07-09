@@ -6,6 +6,9 @@ import {
   Body,
   UseGuards,
   Get,
+  Param,
+  Patch,
+  Query,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
@@ -26,10 +29,10 @@ export class AppointmentsController {
     return this.appointmentService.bookAppointment(dto, patientId);
   }
 
-   @Get('view/patient')
+  @Get('view/patient')
   @Role(UserRole.PATIENT)
-  async getPatientAppointments(@Req() req) {
-    return this.appointmentService.getPatientAppointments(req.user.sub);
+  async getPatientAppointments(@Req() req, @Query('type') type: 'upcoming' | 'past' | 'cancelled') {
+    return this.appointmentService.getFilteredPatientAppointments(req.user.sub, type);
   }
 
   @Get('view/doctor')
@@ -37,4 +40,10 @@ export class AppointmentsController {
   async getDoctorAppointments(@Req() req) {
     return this.appointmentService.getDoctorAppointments(req.user.sub);
   }
+  @Patch(':id/cancel')
+  @UseGuards(JwtAuthGuard)
+  async cancelAppointment(@Req() req, @Param('id') id: number) {
+    return this.appointmentService.cancelAppointment(req.user.sub, id);
+  }
+
 }

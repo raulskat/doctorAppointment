@@ -208,4 +208,50 @@ async getDoctorAppointments(doctorId: number) {
   );
 }
 
+async cancelAppointment(requesterId: number, appointmentId: number) {
+  const appointment = await this.appointmentRepo.findOne({
+    where: { id: appointmentId },
+    relations: ['slot'],
+  });
+
+  if (!appointment) {
+    throw new NotFoundException('Appointment not found');
+  }
+
+  const isDoctor = appointment.doctor_user_id === requesterId;
+  const isPatient = appointment.patient_user_id === requesterId;
+
+  if (!isDoctor && !isPatient) {
+    throw new ForbiddenException('You are not allowed to cancel this appointment');
+  }
+
+  appointment.status = 'cancelled';
+  await this.appointmentRepo.save(appointment);
+
+  return { message: 'Appointment cancelled successfully' };
+}
+
+async getFilteredPatientAppointments(patientId: number, type: 'upcoming' | 'past' | 'cancelled') {
+  const today = dayjs().format('YYYY-MM-DD');
+
+  const qb = this.appointmentRepo
+    .createQueryBuilder('appointment')
+    .leftJoinAndSelect('appointment.slot', 'slot')
+    .where('appointment.patient_user_id = :patientId', { patientId });
+
+  if (type === 'cancelled') {
+    qb.andWhere('appointment.status = :status', { status: 'cancelled' });
+  } else {
+    qb.andWhere('appointment.status = :status', { status: 'booked' });
+    if (type === 'upcoming') {
+      qb.andWhere('slot.date >= :today', { today });
+    } else if (type === 'past') {
+      qb.andWhere('slot.date < :today', { today });
+    }
+  }
+
+  return qb.orderBy('slot.date', 'DESC').getMany();
+}
+
+
 }

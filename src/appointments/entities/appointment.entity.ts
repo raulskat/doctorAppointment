@@ -29,4 +29,7 @@ export class Appointment {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   scheduled_on: Date;
 
+  @Column({ type: 'enum', enum: ['booked', 'cancelled'], default: 'booked' })
+  status: 'booked' | 'cancelled';
+
 }
